@@ -1,0 +1,75 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+    
+	<xacro:macro name="d1_ros2_control"
+							 params="system_name:=D1MujocoSystem
+											 mujoco:=true
+											 use_fake_hardware:=false 
+											 fake_sensor_commands:=false">
+		<ros2_control name="${system_name}" type="system">
+			<hardware>
+				<xacro:if value="${use_fake_hardware}"> <!--  -->
+					<plugin>fake_components/GenericSystem</plugin>
+					<param name="fake_sensor_commands">${fake_sensor_commands}</param>
+					<param name="state_following_offset">0.0</param>
+				</xacro:if>
+				<xacro:if value="${mujoco}">
+					<plugin>mujoco_ros2_control/MujocoSystem</plugin>
+				</xacro:if>
+			</hardware>
+
+			<xacro:macro name="d1_joint" params="joint_name initial_position:=0.0">
+				<joint name="${joint_name}">
+					<command_interface name="position"/>
+					<state_interface name="position">
+						<param name="initial_value">${initial_position}</param>
+					</state_interface>
+					<state_interface name="velocity">
+						<param name="initial_value">0.0</param>
+					</state_interface>
+					<state_interface name="effort"/>
+				</joint>
+			</xacro:macro>
+
+			<xacro:d1_joint joint_name="FL_ABAD_JOINT"/>
+			<xacro:d1_joint joint_name="FL_HIP_JOINT"/>
+			<xacro:d1_joint joint_name="FL_KNEE_JOINT"/>
+			<xacro:d1_joint joint_name="FR_ABAD_JOINT"/>
+			<xacro:d1_joint joint_name="FR_HIP_JOINT"/>
+			<xacro:d1_joint joint_name="FR_KNEE_JOINT"/>
+			<xacro:d1_joint joint_name="RL_ABAD_JOINT"/>
+			<xacro:d1_joint joint_name="RL_HIP_JOINT"/>
+			<xacro:d1_joint joint_name="RL_KNEE_JOINT"/>
+			<xacro:d1_joint joint_name="RR_ABAD_JOINT"/>
+			<xacro:d1_joint joint_name="RR_HIP_JOINT"/>
+			<xacro:d1_joint joint_name="RR_KNEE_JOINT"/>
+
+			<sensor name="imu_in_base">
+				<param name="site">imu_in_base</param>
+				<state_interface name="orientation.x"/>
+				<state_interface name="orientation.y"/>
+				<state_interface name="orientation.z"/>
+				<state_interface name="orientation.w"/>
+				<state_interface name="angular_velocity.x"/>
+				<state_interface name="angular_velocity.y"/>
+				<state_interface name="angular_velocity.z"/>
+				<state_interface name="linear_acceleration.x"/>
+				<state_interface name="linear_acceleration.y"/>
+				<state_interface name="linear_acceleration.z"/>
+			</sensor>
+
+			<sensor name="base_pose">
+				<param name="body">base_link</param>
+				<state_interface name="position.x"/>
+				<state_interface name="position.y"/>
+				<state_interface name="position.z"/>
+				<state_interface name="orientation.x"/>
+				<state_interface name="orientation.y"/>
+				<state_interface name="orientation.z"/>
+				<state_interface name="orientation.w"/>
+			</sensor>
+		</ros2_control>
+	</xacro:macro>
+
+</robot>

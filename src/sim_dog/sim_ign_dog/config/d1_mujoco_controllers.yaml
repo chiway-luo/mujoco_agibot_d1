@@ -1,0 +1,41 @@
+controller_manager:
+  ros__parameters:
+    update_rate: 500
+    use_sim_time: true
+
+    joint_state_broadcaster:
+      type: joint_state_broadcaster/JointStateBroadcaster
+
+    legs_controller:
+      type: joint_trajectory_controller/JointTrajectoryController
+
+    imu_broadcaster:
+      type: imu_sensor_broadcaster/IMUSensorBroadcaster
+
+    base_pose_broadcaster:
+      type: pose_broadcaster/PoseBroadcaster
+
+legs_controller:
+  ros__parameters:
+    joints: [FL_ABAD_JOINT, FL_HIP_JOINT, FL_KNEE_JOINT, FR_ABAD_JOINT, FR_HIP_JOINT, FR_KNEE_JOINT, RL_ABAD_JOINT, RL_HIP_JOINT, RL_KNEE_JOINT, RR_ABAD_JOINT, RR_HIP_JOINT, RR_KNEE_JOINT]
+    command_interfaces: [position]
+    state_interfaces: [position, velocity]
+    state_publish_rate: 50.0
+    action_monitor_rate: 20.0
+    allow_partial_joints_goal: false
+    constraints:
+      goal_time: 1.0
+      stopped_velocity_tolerance: 0.01
+
+imu_broadcaster:
+  ros__parameters:
+    sensor_name: imu_in_base
+    frame_id: base_link
+
+base_pose_broadcaster:
+  ros__parameters:
+    pose_name: base_pose
+    frame_id: world
+    tf:
+      enable: true
+      child_frame_id: base_link

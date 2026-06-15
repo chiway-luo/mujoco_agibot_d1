@@ -1,0 +1,23 @@
+front_camera:
+  ros__parameters:
+    width: 640
+    height: 480
+    frequency: 20.0
+    color_image: true
+    depth_image: true
+    point_cloud: true
+
+lidar_head:
+  ros__parameters:
+    enabled: true
+    output: cloud
+    frequency: 10.0
+    horizontal_min_angle: -1.5708
+    horizontal_max_angle: 1.5708
+    horizontal_samples: 1200
+    vertical_min_angle: -0.2618
+    vertical_max_angle: 0.2618
+    vertical_samples: 16
+    range_min: 0.08
+    range_max: 20.0
+    render_height: 256

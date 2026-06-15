@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="edu_urdf">
+
+  <!-- 参数：是否使用 MuJoCo 硬件接口 -->
+  <xacro:arg name="mujoco"              default="true"/>
+  <xacro:arg name="use_fake_hardware"   default="false"/>
+  <xacro:arg name="fake_sensor_commands" default="false"/>
+  <xacro:arg name="system_name"         default="D1MujocoSystem"/>
+
+  <!-- 1. 机器人本体 URDF（包含 <mujoco> 配置段） -->
+  <xacro:include filename="$(find edu_description)/urdf/edu_mujoco.urdf"/>
+
+  <!-- 2. ros2_control 接口宏 -->
+  <xacro:include filename="$(find edu_description)/urdf/ros2_control.urdf.xacro"/>
+  <xacro:d1_ros2_control
+    system_name="$(arg system_name)"
+    mujoco="$(arg mujoco)"
+    use_fake_hardware="$(arg use_fake_hardware)"
+    fake_sensor_commands="$(arg fake_sensor_commands)"/>
+
+</robot>
