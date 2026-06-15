@@ -21,7 +21,12 @@
 
 			<xacro:macro name="d1_joint" params="joint_name initial_position:=0.0">
 				<joint name="${joint_name}">
-					<command_interface name="position"/>
+					<command_interface name="position">
+						<param name="initial_value">${initial_position}</param>
+					</command_interface>
+					<param name="kp">120.0</param>
+					<param name="ki">0.0</param>
+					<param name="kd">2.0</param>
 					<state_interface name="position">
 						<param name="initial_value">${initial_position}</param>
 					</state_interface>
@@ -32,18 +37,18 @@
 				</joint>
 			</xacro:macro>
 
-			<xacro:d1_joint joint_name="FL_ABAD_JOINT"/>
-			<xacro:d1_joint joint_name="FL_HIP_JOINT"/>
-			<xacro:d1_joint joint_name="FL_KNEE_JOINT"/>
-			<xacro:d1_joint joint_name="FR_ABAD_JOINT"/>
-			<xacro:d1_joint joint_name="FR_HIP_JOINT"/>
-			<xacro:d1_joint joint_name="FR_KNEE_JOINT"/>
-			<xacro:d1_joint joint_name="RL_ABAD_JOINT"/>
-			<xacro:d1_joint joint_name="RL_HIP_JOINT"/>
-			<xacro:d1_joint joint_name="RL_KNEE_JOINT"/>
-			<xacro:d1_joint joint_name="RR_ABAD_JOINT"/>
-			<xacro:d1_joint joint_name="RR_HIP_JOINT"/>
-			<xacro:d1_joint joint_name="RR_KNEE_JOINT"/>
+			<xacro:d1_joint joint_name="FL_ABAD_JOINT" initial_position="0.0"/>
+			<xacro:d1_joint joint_name="FL_HIP_JOINT" initial_position="1.0475260019302368"/>
+			<xacro:d1_joint joint_name="FL_KNEE_JOINT" initial_position="-1.9930626153945923"/>
+			<xacro:d1_joint joint_name="FR_ABAD_JOINT" initial_position="0.0"/>
+			<xacro:d1_joint joint_name="FR_HIP_JOINT" initial_position="1.0475260019302368"/>
+			<xacro:d1_joint joint_name="FR_KNEE_JOINT" initial_position="-1.9930626153945923"/>
+			<xacro:d1_joint joint_name="RL_ABAD_JOINT" initial_position="0.0"/>
+			<xacro:d1_joint joint_name="RL_HIP_JOINT" initial_position="1.0475260019302368"/>
+			<xacro:d1_joint joint_name="RL_KNEE_JOINT" initial_position="-1.9930626153945923"/>
+			<xacro:d1_joint joint_name="RR_ABAD_JOINT" initial_position="0.0"/>
+			<xacro:d1_joint joint_name="RR_HIP_JOINT" initial_position="1.0475260019302368"/>
+			<xacro:d1_joint joint_name="RR_KNEE_JOINT" initial_position="-1.9930626153945923"/>
 
 			<sensor name="imu_in_base">
 				<param name="site">imu_in_base</param>

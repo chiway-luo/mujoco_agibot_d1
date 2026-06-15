@@ -231,7 +231,7 @@ def create_nodes(context, *args, **kwargs):
             'publish_foot_contacts': 'false',#仿真未提供 foot_contacts
             'use_foot_contacts': 'false',#仿真未提供 foot_contacts 时禁用
             'use_base_to_footprint_ekf': 'false',#禁用 base_to_footprint EKF
-            'use_footprint_to_odom_ekf': 'true',#启用 footprint_to_odom EKF
+            'use_footprint_to_odom_ekf': 'false',#启用 footprint_to_odom EKF
             # 'joint_controller_topic': 'legs_controller/joint_trajectory',#关节控制话题 默认joint_group_effort_controller/joint_trajectory
             'joint_controller_topic': 'joint_command',#关节控制话题
             'gait_config_path': os.path.join(config_pkg_share,'config','gait','gait.yaml'),

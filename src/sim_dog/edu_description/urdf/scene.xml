@@ -17,7 +17,8 @@
     <worldbody>
         <light pos="0 0 1.5" dir="0 0 -1" directional="true"/>
         <geom name="floor" size="0 0 0.05" type="plane" material="groundplane"
-              priority="1" condim="6" friction="3.0 0.2 0.02"/>
+              priority="1" condim="6" friction="2.0 0.15 0.01"
+              solref="0.04 1" solimp="0.8 0.95 0.001"/>
     </worldbody>
 
 </mujoco>
