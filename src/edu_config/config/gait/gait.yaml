@@ -8,7 +8,7 @@
       max_linear_velocity_y : 1.0 #最大侧向线速度
       max_angular_velocity_z : 1.0 #最大角速度
       com_x_translation: 0.0 #质心x方向偏移
-      swing_height : 0.02 #摆动高度
+      swing_height : 0.1 #摆动高度
       stance_depth : 0.01 #着地点深度
       stance_duration : 0.3 #支撑相持续时间
       nominal_height : 0.225 #名义高度

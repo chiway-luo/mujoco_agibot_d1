@@ -92,7 +92,6 @@ def create_nodes(context, *args, **kwargs):
         remappings=[
             ("/controller_manager/robot_description", "/robot_description"),
             ("/joint_states", "/get_joint_states"),
-            ("/legs_controller/joint_trajectory", "/joint_command"),
         ],
         output="screen",
     )
@@ -186,7 +185,7 @@ def create_nodes(context, *args, **kwargs):
         output='screen',
         remappings=[
             ("/joint_states", "/get_joint_states"),
-            ("/legs_controller/joint_trajectory","/joint_command")
+            # ("/legs_controller/joint_trajectory","/joint_command")
             # 如果 legs_controller 的 action 接口是 /legs_controller/joint_trajectory，
             # 且 CHAMP 发送到 /joint_command，则需要这个 remapping；
 
@@ -223,7 +222,7 @@ def create_nodes(context, *args, **kwargs):
             # "publish_foot_contacts": "false",
             # "close_loop_odom": "true",
             'use_sim_time': 'true',
-            'description_path': os.path.join(descr_pkg_share,'urdf','edu.urdf'),
+            'description_path': robot_urdf_path,
             'rviz': 'false',#仿真环境已经启动rviz了
             'gazebo': 'true',#在gazebo中运行
             'base_link_frame': 'base_link',#d1_dog模型为base_link
@@ -232,8 +231,8 @@ def create_nodes(context, *args, **kwargs):
             'use_foot_contacts': 'false',#仿真未提供 foot_contacts 时禁用
             'use_base_to_footprint_ekf': 'false',#禁用 base_to_footprint EKF
             'use_footprint_to_odom_ekf': 'false',#启用 footprint_to_odom EKF
-            # 'joint_controller_topic': 'legs_controller/joint_trajectory',#关节控制话题 默认joint_group_effort_controller/joint_trajectory
-            'joint_controller_topic': 'joint_command',#关节控制话题
+            'joint_controller_topic': 'legs_controller/joint_trajectory',#关节控制话题 直接对接controller实际订阅的话题
+            # 'joint_controller_topic': 'joint_command',#关节控制话题（旧，已弃用）
             'gait_config_path': os.path.join(config_pkg_share,'config','gait','gait.yaml'),
             'joints_map_path': os.path.join(config_pkg_share,'config','joints','joints.yaml'),
             'links_map_path': os.path.join(config_pkg_share,'config','links','links.yaml'),
@@ -260,21 +259,26 @@ def create_nodes(context, *args, **kwargs):
 
 
     #### 启动顺序控制
-    # 先启动 CHAMP 和 controller spawner。spawner 会等待 mujoco_node 内部的 controller_manager；
-    # mujoco_node 延迟到最后启动，减少仿真先跑、控制命令后到导致的倒地问题。
+    # Gazebo 旧链路是 controller active 之后再启动 CHAMP。MuJoCo 也按这个顺序走：
+    # xacro2mjcf -> mujoco_node -> controller spawners -> CHAMP。
 
     start_mujoco = RegisterEventHandler(
         OnProcessExit(
             target_action=xacro2mjcf,
             on_exit=[
-                imu_broadcaster,
-                base_pose_broadcaster,
                 rviz_node,
                 TimerAction(
-                    period=champ_delay,
+                    period=mujoco_start_delay,
                     actions=[
-                        champ_remap,
-                        TimerAction(period=mujoco_start_delay, actions=[mujoco_node]),
+                        mujoco_node,
+                        TimerAction(
+                            period=controllers_delay,
+                            actions=[
+                                imu_broadcaster,
+                                base_pose_broadcaster,
+                                jsb_spawner,
+                            ],
+                        ),
                     ],
                 ),
             ],
@@ -285,18 +289,17 @@ def create_nodes(context, *args, **kwargs):
     create_node.add_action(
         RegisterEventHandler(
             OnProcessExit(
-                target_action=base_pose_broadcaster,
-                on_exit=[jsb_spawner],
+                target_action=jsb_spawner,
+                on_exit=[legs_spawner],
             )
         )
     )
 
-
     create_node.add_action(
         RegisterEventHandler(
             OnProcessExit(
-                target_action=jsb_spawner,
-                on_exit=[legs_spawner],
+                target_action=legs_spawner,
+                on_exit=[TimerAction(period=champ_delay, actions=[champ_remap])],
             )
         )
     )

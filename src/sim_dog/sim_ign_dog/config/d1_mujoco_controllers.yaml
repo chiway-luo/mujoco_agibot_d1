@@ -22,7 +22,8 @@ legs_controller:
     state_interfaces: [position, velocity]
     state_publish_rate: 50.0
     action_monitor_rate: 20.0
-    allow_partial_joints_goal: false
+    interpolate_from_desired_state: true # 在接收到新的目标位置时，是否从当前状态插值到目标状态，而不是直接跳转
+    allow_partial_joints_goal: false # 不允许部分关节目标
     constraints:
       goal_time: 1.0
       stopped_velocity_tolerance: 0.01
