@@ -16,9 +16,9 @@ from launch.actions import IncludeLaunchDescription
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 # 分组相关----------------------
 # from launch_ros.actions import PushRosNamespace
-# from launch.actions import GroupAction
+from launch.actions import GroupAction
 # 事件相关----------------------
-from launch.event_handlers import OnProcessExit, OnProcessStart
+from launch.event_handlers import OnProcessExit
 from launch.actions import RegisterEventHandler, OpaqueFunction
 # 获取功能包下share目录路径-------
 from ament_index_python.packages import get_package_share_directory
@@ -29,6 +29,7 @@ from launch.actions import TimerAction
 from launch.actions import ExecuteProcess
 from launch.actions import SetEnvironmentVariable
 import xacro
+from launch_ros.actions import SetRemap
 
 def create_nodes(context, *args, **kwargs):
     create_node = LaunchDescription()
@@ -59,7 +60,7 @@ def create_nodes(context, *args, **kwargs):
             {"mujoco_files_path": model_dir},
             {"base_link": "base_link"},
             {"floating": True},
-            {"initial_position": "0 0 0.45"},
+            {"initial_position": "0 0 0.75"},
             {"initial_orientation": "0 0 0"},
         ],
         output="screen",
@@ -95,7 +96,6 @@ def create_nodes(context, *args, **kwargs):
         ],
         output="screen",
     )
-    create_node.add_action(mujoco_node)
 
     # 发布mujoco中的关节信息到 ROS2 的 /joint_states 话题，供 CHAMP 和其他节点使用
     # joint_state_broadcaster = Node(
@@ -115,15 +115,14 @@ def create_nodes(context, *args, **kwargs):
         arguments=["imu_broadcaster", "--controller-manager", ["/", "controller_manager"], "--param-file", ros2_control_params_file],
         output="screen",
     )
-    create_node.add_action(imu_broadcaster)
 
+    # 发布机器人位姿到 /tf，供 CHAMP 和其他节点使用；如果你的模型没有 IMU，可以把这个改成 base_pose_broadcaster
     base_pose_broadcaster = Node(
         package="controller_manager",
         executable="spawner",
         arguments=["base_pose_broadcaster", "--controller-manager", ["/", "controller_manager"], "--param-file", ros2_control_params_file],
         output="screen",
     )
-    create_node.add_action(base_pose_broadcaster)
 
     # legs_controller = Node(
     #     package="controller_manager",
@@ -141,18 +140,7 @@ def create_nodes(context, *args, **kwargs):
         arguments=["-d", rviz_config],
         output="screen",
     )
-    create_node.add_action(rviz_node)
 
-
-    start_mujoco = RegisterEventHandler(
-        OnProcessExit(
-            target_action=xacro2mjcf,
-            on_exit=[mujoco_node],
-        )
-    )
-    create_node.add_action(start_mujoco)
-
-    
 
     #附加内容
     # If你的 controller_manager 实际在模型命名空间下（例如 /model/go2/controller_manager），启动时把这个参数改掉
@@ -161,12 +149,14 @@ def create_nodes(context, *args, **kwargs):
     create_node.add_action(DeclareLaunchArgument('controller_manager_timeout', default_value='60.0'))
     create_node.add_action(DeclareLaunchArgument('controllers_delay', default_value='4.0'))
     create_node.add_action(DeclareLaunchArgument('champ_delay', default_value='1.0'))
+    create_node.add_action(DeclareLaunchArgument('mujoco_start_delay', default_value='3.0'))
 
 
     controller_manager_timeout = LaunchConfiguration('controller_manager_timeout')
     controller_manager = LaunchConfiguration('controller_manager')
     controllers_delay = LaunchConfiguration('controllers_delay')
     champ_delay = LaunchConfiguration('champ_delay')
+    mujoco_start_delay = LaunchConfiguration('mujoco_start_delay')
 
     # 控制器生成器：等待 controller_manager 服务可用，且按顺序启动（先 joint_state_broadcaster 再 legs_controller）
     jsb_spawner = Node(
@@ -196,29 +186,21 @@ def create_nodes(context, *args, **kwargs):
         output='screen',
         remappings=[
             ("/joint_states", "/get_joint_states"),
-            ("/legs_controller/joint_trajectory","/joint_command") 
+            ("/legs_controller/joint_trajectory","/joint_command")
             # 如果 legs_controller 的 action 接口是 /legs_controller/joint_trajectory，
             # 且 CHAMP 发送到 /joint_command，则需要这个 remapping；
-            
+
         ]
     )
-    
-    create_node.add_action(
-        RegisterEventHandler(
-            OnProcessExit(
-                target_action=jsb_spawner,
-                on_exit=[legs_spawner],
-            )
-        )
-    )
-    
-    create_node.add_action(TimerAction(period=controllers_delay, actions=[jsb_spawner]))
+
+
+    # create_node.add_action(TimerAction(period=controllers_delay, actions=[jsb_spawner]))
 
     #启动cham
     config_pkg_share = os.path.join(get_package_share_directory('edu_config'))
     descr_pkg_share = os.path.join(get_package_share_directory('edu_description'))
-    
-    cham_bringup_launch = IncludeLaunchDescription(
+
+    champ_bringup_launch = IncludeLaunchDescription(
         launch_description_source=PythonLaunchDescriptionSource(
             os.path.join(
                 get_package_share_directory('champ_bringup'),
@@ -260,31 +242,67 @@ def create_nodes(context, *args, **kwargs):
             "hardware_connected": 'false', #不连接真实硬件
             "close_loop_odom": 'true', #使用闭环里程计
         }.items(),
-        remappings=[
-            ("/joint_states", "/get_joint_states"),
+    )
+
+    champ_remap = GroupAction([
+            SetRemap(
+                src='/joint_states',
+                dst='/get_joint_states'
+            ),
+            # 如果 CHAMP 内部用的是相对话题 joint_states，也可以加这一条
+            SetRemap(
+                src='joint_states',
+                dst='get_joint_states'
+            ),
+            champ_bringup_launch
         ]
     )
 
-    # CHAMP 依赖 /joint_states、/tf、以及控制器 action 接口等；提前启动可能触发偶发 exit code -11。
-    # 因此把 CHAMP 的启动放到 controllers 加载完成之后。
+
+    #### 启动顺序控制
+    # 先启动 CHAMP 和 controller spawner。spawner 会等待 mujoco_node 内部的 controller_manager；
+    # mujoco_node 延迟到最后启动，减少仿真先跑、控制命令后到导致的倒地问题。
+
+    start_mujoco = RegisterEventHandler(
+        OnProcessExit(
+            target_action=xacro2mjcf,
+            on_exit=[
+                imu_broadcaster,
+                base_pose_broadcaster,
+                rviz_node,
+                TimerAction(
+                    period=champ_delay,
+                    actions=[
+                        champ_remap,
+                        TimerAction(period=mujoco_start_delay, actions=[mujoco_node]),
+                    ],
+                ),
+            ],
+        )
+    )
+    create_node.add_action(start_mujoco)
+
     create_node.add_action(
         RegisterEventHandler(
             OnProcessExit(
-                target_action=legs_spawner,
-                on_exit=[TimerAction(period=champ_delay, actions=[cham_bringup_launch])],
+                target_action=base_pose_broadcaster,
+                on_exit=[jsb_spawner],
             )
         )
     )
 
-    load_controllers = RegisterEventHandler(
-        OnProcessStart(
-            target_action=mujoco_node,
-            on_start=[jsb_spawner, imu_broadcaster, base_pose_broadcaster, legs_spawner, rviz_node],
+
+    create_node.add_action(
+        RegisterEventHandler(
+            OnProcessExit(
+                target_action=jsb_spawner,
+                on_exit=[legs_spawner],
+            )
         )
     )
-    create_node.add_action(load_controllers)
 
-    return create_node
+
+    return create_node.entities
 
 
 def generate_launch_description():

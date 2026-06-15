@@ -204,7 +204,6 @@ def generate_launch_description():
             )
         )
     )
-    
     ld.add_action(TimerAction(period=controllers_delay, actions=[jsb_spawner]))
 
     #启动cham

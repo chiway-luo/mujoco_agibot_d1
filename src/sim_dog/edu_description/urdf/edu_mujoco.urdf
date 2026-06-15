@@ -31,10 +31,11 @@
       </material>
     </visual>
     <collision>
-      <origin xyz="0.01424 0 0.04" rpy="0 0 0"/>
-        <geometry>
-          <box size="0.4 0.1 0.05"/>
-        </geometry>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh
+          filename="package://edu_description/meshes/BASE_LINK.STL" />
+      </geometry>
     </collision>
   </link>
   <link name="FL_ABAD_LINK">
@@ -67,9 +68,10 @@
       </material>
     </visual>
     <collision>
-      <origin xyz="-0.04 -0.017 0.04" rpy="0 0 0"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <box size="0.1 0.07 0.07"/>
+        <mesh
+          filename="package://edu_description/meshes/FL_ABAD_LINK.STL" />
       </geometry>
     </collision>
   </link>
@@ -120,9 +122,10 @@
       </material>
     </visual>
     <collision>
-      <origin xyz="-0.003 -0.06 -0.08" rpy="0 0 0"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <box size="0.08392 0.17199 0.25400"/>
+        <mesh
+          filename="package://edu_description/meshes/FL_HIP_LINK.STL" />
       </geometry>
     </collision>
   </link>
@@ -175,9 +178,10 @@
       </material>
     </visual>
     <collision>
-      <origin xyz="0.02160 0 -0.08839" rpy="0 0 0"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <box size="0.03481 0.02000 0.11477"/>
+        <mesh
+          filename="package://edu_description/meshes/FL_KNEE_LINK.STL" />
       </geometry>
     </collision>
   </link>
@@ -229,13 +233,13 @@
           rgba="0.75294 0.75294 0.75294 1" />
       </material>
     </visual>
-    <!-- 半径按你的脚实际大小微调 -->
     <collision>
-    <origin xyz="0 0 0" rpy="0 0 0"/>
-    <geometry>
-      <sphere radius="0.02"/> 
-    </geometry>
-  </collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh
+          filename="package://edu_description/meshes/FL_FOOT_LINK.STL" />
+      </geometry>
+    </collision>
   </link>
   <joint
     name="FL_FOOT_JOINT"
@@ -282,9 +286,10 @@
       </material>
     </visual>
     <collision>
-      <origin xyz="-0.04 0.017 0.04" rpy="0 0 0"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <box size="0.1 0.07 0.07"/>
+        <mesh
+          filename="package://edu_description/meshes/FR_ABAD_LINK.STL" />
       </geometry>
     </collision>
   </link>
@@ -337,9 +342,10 @@
       </material>
     </visual>
     <collision>
-      <origin xyz="-0.003 0.06 -0.08" rpy="0 0 0"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <box size="0.08392 0.17199 0.25400"/>
+        <mesh
+          filename="package://edu_description/meshes/FR_HIP_LINK.STL" />
       </geometry>
     </collision>
   </link>
@@ -392,9 +398,10 @@
       </material>
     </visual>
     <collision>
-      <origin xyz="0.02160 0 -0.08839" rpy="0 0 0"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <box size="0.03481 0.02000 0.11477"/>
+        <mesh
+          filename="package://edu_description/meshes/FR_KNEE_LINK.STL" />
       </geometry>
     </collision>
   </link>
@@ -447,11 +454,12 @@
       </material>
     </visual>
     <collision>
-    <origin xyz="0 0 0" rpy="0 0 0"/>
-    <geometry>
-      <sphere radius="0.02"/> <!-- 半径按你的脚实际大小微调 -->
-    </geometry>
-  </collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh
+          filename="package://edu_description/meshes/FR_FOOT_LINK.STL" />
+      </geometry>
+    </collision>
   </link>
   <joint
     name="FR_FOOT_JOINT"
@@ -497,9 +505,10 @@
       </material>
     </visual>
     <collision>
-      <origin xyz="0.04 -0.017 0.04" rpy="0 0 0"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <box size="0.1 0.07 0.07"/>
+        <mesh
+          filename="package://edu_description/meshes/RR_ABAD_LINK.STL" />
       </geometry>
     </collision>
   </link>
@@ -552,9 +561,10 @@
       </material>
     </visual>
     <collision>
-      <origin xyz="-0.003 -0.06 -0.08" rpy="0 0 0"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <box size="0.08392 0.17199 0.25400"/>
+        <mesh
+          filename="package://edu_description/meshes/RR_HIP_LINK.STL" />
       </geometry>
     </collision>
   </link>
@@ -607,9 +617,10 @@
       </material>
     </visual>
     <collision>
-      <origin xyz="0.02160 0 -0.08839" rpy="0 0 0"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <box size="0.03481 0.02000 0.11477"/>
+        <mesh
+          filename="package://edu_description/meshes/RR_KNEE_LINK.STL" />
       </geometry>
     </collision>
   </link>
@@ -662,11 +673,12 @@
       </material>
     </visual>
     <collision>
-    <origin xyz="0 0 0" rpy="0 0 0"/>
-    <geometry>
-      <sphere radius="0.02"/> <!-- 半径按你的脚实际大小微调 -->
-    </geometry>
-  </collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh
+          filename="package://edu_description/meshes/RR_FOOT_LINK.STL" />
+      </geometry>
+    </collision>
   </link>
   <joint
     name="RR_FOOT_JOINT"
@@ -712,9 +724,10 @@
       </material>
     </visual>
     <collision>
-      <origin xyz="0.04 0.017 0.04" rpy="0 0 0"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <box size="0.1 0.07 0.07"/>
+        <mesh
+          filename="package://edu_description/meshes/RL_ABAD_LINK.STL" />
       </geometry>
     </collision>
   </link>
@@ -767,9 +780,10 @@
       </material>
     </visual>
     <collision>
-      <origin xyz="-0.003 0.06 -0.08" rpy="0 0 0"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <box size="0.08392 0.17199 0.25400"/>
+        <mesh
+          filename="package://edu_description/meshes/RL_HIP_LINK.STL" />
       </geometry>
     </collision>
   </link>
@@ -822,9 +836,10 @@
       </material>
     </visual>
     <collision>
-      <origin xyz="0.02160 0 -0.08839" rpy="0 0 0"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <box size="0.03481 0.02000 0.11477"/>
+        <mesh
+          filename="package://edu_description/meshes/RL_KNEE_LINK.STL" />
       </geometry>
     </collision>
   </link>
@@ -878,9 +893,10 @@
     </visual>
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
-        <geometry>
-          <sphere radius="0.02"/> <!-- 半径按你的脚实际大小微调 -->
-        </geometry>
+      <geometry>
+        <mesh
+          filename="package://edu_description/meshes/RL_FOOT_LINK.STL" />
+      </geometry>
     </collision>
   </link>
   <joint
