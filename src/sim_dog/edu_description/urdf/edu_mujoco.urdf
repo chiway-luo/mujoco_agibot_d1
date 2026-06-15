@@ -234,10 +234,9 @@
       </material>
     </visual>
     <collision>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <origin xyz="0 0 -0.013" rpy="0 0 0"/>
       <geometry>
-        <mesh
-          filename="package://edu_description/meshes/FL_FOOT_LINK.STL" />
+        <sphere radius="0.022"/>
       </geometry>
     </collision>
   </link>
@@ -454,10 +453,9 @@
       </material>
     </visual>
     <collision>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <origin xyz="0 0 -0.013" rpy="0 0 0"/>
       <geometry>
-        <mesh
-          filename="package://edu_description/meshes/FR_FOOT_LINK.STL" />
+        <sphere radius="0.022"/>
       </geometry>
     </collision>
   </link>
@@ -673,10 +671,9 @@
       </material>
     </visual>
     <collision>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <origin xyz="0 0 -0.013" rpy="0 0 0"/>
       <geometry>
-        <mesh
-          filename="package://edu_description/meshes/RR_FOOT_LINK.STL" />
+        <sphere radius="0.022"/>
       </geometry>
     </collision>
   </link>
@@ -892,10 +889,9 @@
       </material>
     </visual>
     <collision>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <origin xyz="0 0 -0.013" rpy="0 0 0"/>
       <geometry>
-        <mesh
-          filename="package://edu_description/meshes/RL_FOOT_LINK.STL" />
+        <sphere radius="0.022"/>
       </geometry>
     </collision>
   </link>
