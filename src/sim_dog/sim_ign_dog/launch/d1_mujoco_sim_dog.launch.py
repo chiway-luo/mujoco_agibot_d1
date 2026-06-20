@@ -85,9 +85,9 @@ def patch_mujoco_collisions(model_dir):
         if mesh_name in FOOT_COLLISION_MESHES:
             geom.set("priority", "2")
             geom.set("condim", "6")
-            geom.set("friction", "2.0 0.15 0.01")
-            geom.set("solref", "0.01 1")
-            geom.set("solimp", "0.9 0.95 0.008")
+            geom.set("friction", "1.2 0.04 0.002")
+            geom.set("solref", "0.006 4")
+            geom.set("solimp", "0.95 0.99 0.001")
 
     ET.indent(tree, space="  ")
     tree.write(model_xml, encoding="unicode", xml_declaration=False)
