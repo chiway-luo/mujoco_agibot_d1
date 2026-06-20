@@ -45,6 +45,9 @@ StateEstimation::StateEstimation():
   y_pos_ = 0.0f;
   heading_ = 0.0f;
   last_cmd_vel_ = geometry_msgs::msg::Twist();
+  last_cmd_vel_time_ = clock_.now();
+  have_cmd_vel_ = false;
+  cmd_vel_timeout_ = 0.05;
     last_vel_time_ = clock_.now();
     last_sync_time_ = clock_.now();
     base_broadcaster_ =
@@ -75,6 +78,7 @@ StateEstimation::StateEstimation():
     this->get_parameter("gait.stance_duration",        gait_config_.stance_duration);
     this->get_parameter("gait.nominal_height",         gait_config_.nominal_height);
     this->get_parameter("urdf",                        urdf);
+    this->get_parameter("cmd_vel_timeout",             cmd_vel_timeout_);
 
     if (orientation_from_imu_)
       imu_subscriber_ = this->create_subscription<sensor_msgs::msg::Imu>(
@@ -216,9 +220,10 @@ void StateEstimation::joint_states_callback_(const sensor_msgs::msg::JointState:
 
   base_.updateJointPositions(current_joint_positions);
 
-  const float tangential_velocity = static_cast<float>(last_cmd_vel_.angular.z) * base_.lf.center_to_nominal();
-  const float velocity = std::sqrt(std::pow(static_cast<float>(last_cmd_vel_.linear.x), 2.0f) +
-                                   std::pow(static_cast<float>(last_cmd_vel_.linear.y) + tangential_velocity, 2.0f));
+  const geometry_msgs::msg::Twist cmd_vel = currentCmdVel_();
+  const float tangential_velocity = static_cast<float>(cmd_vel.angular.z) * base_.lf.center_to_nominal();
+  const float velocity = std::sqrt(std::pow(static_cast<float>(cmd_vel.linear.x), 2.0f) +
+                                   std::pow(static_cast<float>(cmd_vel.linear.y) + tangential_velocity, 2.0f));
 
   phase_generator_.run(velocity, 0.0f, rosTimeToChampTime(clock_.now()));
 
@@ -238,15 +243,36 @@ void StateEstimation::imu_callback_(const sensor_msgs::msg::Imu::SharedPtr msg)
 void StateEstimation::cmd_vel_callback_(const geometry_msgs::msg::Twist::SharedPtr msg)
 {
   last_cmd_vel_ = *msg;
+  last_cmd_vel_time_ = clock_.now();
+  have_cmd_vel_ = true;
+}
+
+geometry_msgs::msg::Twist StateEstimation::currentCmdVel_()
+{
+  geometry_msgs::msg::Twist cmd_vel;
+  const rclcpp::Time now = clock_.now();
+
+  const bool command_timed_out =
+    have_cmd_vel_ &&
+    cmd_vel_timeout_ > 0.0 &&
+    (now - last_cmd_vel_time_).seconds() > cmd_vel_timeout_;
+
+  if (!have_cmd_vel_ || command_timed_out)
+  {
+    return cmd_vel;
+  }
+
+  return last_cmd_vel_;
 }
 
 void StateEstimation::publishFootprintToOdom_()
 {
   if (!use_foot_contacts_)
   {
-    current_velocities_.linear.x = last_cmd_vel_.linear.x;
-    current_velocities_.linear.y = last_cmd_vel_.linear.y;
-    current_velocities_.angular.z = last_cmd_vel_.angular.z;
+    const geometry_msgs::msg::Twist cmd_vel = currentCmdVel_();
+    current_velocities_.linear.x = cmd_vel.linear.x;
+    current_velocities_.linear.y = cmd_vel.linear.y;
+    current_velocities_.angular.z = cmd_vel.angular.z;
   }
   else
   {

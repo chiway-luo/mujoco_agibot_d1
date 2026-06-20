@@ -38,6 +38,9 @@ QuadrupedController::QuadrupedController():
                         .allow_undeclared_parameters(true)
                         .automatically_declare_parameters_from_overrides(true)),
     clock_(*this->get_clock()),
+    last_cmd_vel_time_(clock_.now()),
+    have_cmd_vel_(false),
+    cmd_vel_timeout_(0.05),
     body_controller_(base_),
     leg_controller_(base_, rosTimeToChampTime(clock_.now())),
     kinematics_(base_)
@@ -65,6 +68,7 @@ QuadrupedController::QuadrupedController():
     this->get_parameter("joint_controller_topic",      joint_control_topic);
     this->get_parameter("loop_rate",                   loop_rate);
     this->get_parameter("urdf",                        urdf);
+    this->get_parameter("cmd_vel_timeout",             cmd_vel_timeout_);
     
     cmd_vel_subscription_ = this->create_subscription<geometry_msgs::msg::Twist>(
         "cmd_vel/smooth", 10, std::bind(&QuadrupedController::cmdVelCallback_, this,  std::placeholders::_1));
@@ -106,6 +110,7 @@ void QuadrupedController::controlLoop_()
 
     body_controller_.poseCommand(target_foot_positions, req_pose_);
 
+    req_vel_ = currentCmdVel_();
     leg_controller_.velocityCommand(target_foot_positions, req_vel_, rosTimeToChampTime(clock_.now()));
     kinematics_.inverse(target_joint_positions, target_foot_positions);
 
@@ -113,11 +118,32 @@ void QuadrupedController::controlLoop_()
     publishJoints_(target_joint_positions);
 }
 
+champ::Velocities QuadrupedController::currentCmdVel_()
+{
+    champ::Velocities cmd_vel;
+    const rclcpp::Time now = clock_.now();
+
+    const bool command_timed_out =
+        have_cmd_vel_ &&
+        cmd_vel_timeout_ > 0.0 &&
+        (now - last_cmd_vel_time_).seconds() > cmd_vel_timeout_;
+
+    if (!have_cmd_vel_ || command_timed_out)
+    {
+        return cmd_vel;
+    }
+
+    cmd_vel.linear.x = target_cmd_vel_.linear.x;
+    cmd_vel.linear.y = target_cmd_vel_.linear.y;
+    cmd_vel.angular.z = target_cmd_vel_.angular.z;
+    return cmd_vel;
+}
+
 void QuadrupedController::cmdVelCallback_(const geometry_msgs::msg::Twist::SharedPtr msg)
 {
-    req_vel_.linear.x = msg->linear.x;
-    req_vel_.linear.y = msg->linear.y;
-    req_vel_.angular.z = msg->angular.z;
+    target_cmd_vel_ = *msg;
+    last_cmd_vel_time_ = clock_.now();
+    have_cmd_vel_ = true;
 }
 
 void QuadrupedController::cmdPoseCallback_(const geometry_msgs::msg::Pose::SharedPtr msg)

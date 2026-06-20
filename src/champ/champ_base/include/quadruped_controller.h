@@ -64,6 +64,10 @@ class QuadrupedController: public rclcpp::Node
     rclcpp::Clock clock_;
     
     champ::Velocities req_vel_;
+    geometry_msgs::msg::Twist target_cmd_vel_;
+    rclcpp::Time last_cmd_vel_time_;
+    bool have_cmd_vel_;
+    double cmd_vel_timeout_;
     champ::Pose req_pose_;
 
     champ::GaitConfig gait_config_;
@@ -81,6 +85,7 @@ class QuadrupedController: public rclcpp::Node
     bool in_gazebo_;
 
     void controlLoop_();
+    champ::Velocities currentCmdVel_();
     
     void publishJoints_(float target_joints[12]);
     void publishFootContacts_(bool foot_contacts[4]);

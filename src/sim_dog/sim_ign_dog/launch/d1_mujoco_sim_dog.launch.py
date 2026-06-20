@@ -414,7 +414,7 @@ def generate_launch_description():
             DeclareLaunchArgument("initial_keyframe", default_value="spawn"),
             DeclareLaunchArgument("spawn_x", default_value="0.0"),
             DeclareLaunchArgument("spawn_y", default_value="0.0"),
-            DeclareLaunchArgument("spawn_z", default_value="0.5"),
+            DeclareLaunchArgument("spawn_z", default_value="0.4"),
             DeclareLaunchArgument("spawn_yaw", default_value="0.0"),
             DeclareLaunchArgument("controller_manager", default_value="/controller_manager"),
             DeclareLaunchArgument("controller_manager_timeout", default_value="60.0"),

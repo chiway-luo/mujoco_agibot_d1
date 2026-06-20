@@ -106,6 +106,9 @@ class StateEstimation: public rclcpp::Node
     bool use_foot_contacts_;
 
     geometry_msgs::msg::Twist last_cmd_vel_;
+    rclcpp::Time last_cmd_vel_time_;
+    bool have_cmd_vel_;
+    double cmd_vel_timeout_;
     champ::PhaseGenerator phase_generator_;
 
     void publishFootprintToOdom_();
@@ -114,6 +117,7 @@ class StateEstimation: public rclcpp::Node
                                 const std::shared_ptr<champ_msgs::msg::ContactsStamped const>& contacts_msg);
     void joint_states_callback_(const sensor_msgs::msg::JointState::SharedPtr joints_msg);
     void cmd_vel_callback_(const geometry_msgs::msg::Twist::SharedPtr msg);
+    geometry_msgs::msg::Twist currentCmdVel_();
     void imu_callback_(const sensor_msgs::msg::Imu::SharedPtr msg);
 
     visualization_msgs::msg::Marker createMarker_(geometry::Transformation foot_pos, int id, std::string frame_id);

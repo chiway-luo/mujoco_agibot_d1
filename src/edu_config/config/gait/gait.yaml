@@ -1,5 +1,6 @@
 /**:
   ros__parameters:
+    cmd_vel_timeout: 0.05 # 超过该时间没有速度消息就自动置零
     gait:
       knee_orientation : ">>" #膝盖方向 ">>"表示向前 "<<"表示向后
       pantograph_leg : false #是否为吊杆式腿
@@ -8,10 +9,10 @@
       max_linear_velocity_y : 0.25 #最大侧向线速度
       max_angular_velocity_z : 0.5 #最大角速度
       com_x_translation: 0.0 #质心x方向偏移
-      swing_height : 0.05 #摆动高度
+      swing_height : 0.04 #摆动高度
       stance_depth : 0.01 #着地点深度
       stance_duration : 0.25 #支撑相持续时间
-      nominal_height : 0.2 #名义高度
+      nominal_height : 0.225 #名义高度
 
 
   #     /**:
@@ -28,4 +29,3 @@
   #     stance_depth : 0.01
   #     stance_duration : 0.25
   #     nominal_height : 0.225
-
