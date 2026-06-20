@@ -16,7 +16,7 @@ FORWARDED_ARGUMENTS = [
     ("initial_keyframe", "spawn"),
     ("spawn_x", "0.0"),
     ("spawn_y", "0.0"),
-    ("spawn_z", "0.45"),
+    ("spawn_z", "0.6"),
     ("spawn_yaw", "0.0"),
     ("controller_manager", "/controller_manager"),
     ("controller_manager_timeout", "60.0"),

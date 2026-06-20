@@ -23,20 +23,29 @@ from launch_ros.actions import Node, SetRemap
 from launch_ros.parameter_descriptions import ParameterValue
 
 
-STAND_JOINT_POSITIONS = [
-    0.0,
-    1.0475260019302368,
-    -1.9930626153945923,
-    0.0,
-    1.0475260019302368,
-    -1.9930626153945923,
-    0.0,
-    1.0475260019302368,
-    -1.9930626153945923,
-    0.0,
-    1.0475260019302368,
-    -1.9930626153945923,
-]
+NEUTRAL_JOINT_POSITIONS = {
+    "FL_ABAD_JOINT": 0.0,
+    "FL_HIP_JOINT": 1.0475260019302368,
+    "FL_KNEE_JOINT": -1.9930626153945923,
+    "FR_ABAD_JOINT": 0.0,
+    "FR_HIP_JOINT": 1.0475260019302368,
+    "FR_KNEE_JOINT": -1.9930626153945923,
+    "RL_ABAD_JOINT": 0.0,
+    "RL_HIP_JOINT": 1.0475260019302368,
+    "RL_KNEE_JOINT": -1.9930626153945923,
+    "RR_ABAD_JOINT": 0.0,
+    "RR_HIP_JOINT": 1.0475260019302368,
+    "RR_KNEE_JOINT": -1.9930626153945923,
+}
+
+FOOT_COLLISION_MESHES = {
+    "FL_FOOT_LINK",
+    "FR_FOOT_LINK",
+    "RL_FOOT_LINK",
+    "RR_FOOT_LINK",
+}
+
+ACTIVE_COLLISION_MESHES = {"BASE_LINK", *FOOT_COLLISION_MESHES}
 
 
 def format_mjcf_numbers(values):
@@ -56,14 +65,65 @@ def prepare_mujoco_output(model_dir, model_scene_xml):
         os.unlink(model_scene_xml)
 
 
-def write_spawn_mujoco_inputs(source_path, output_path, context):
+def patch_mujoco_collisions(model_dir):
+    model_xml = os.path.join(model_dir, "mujoco_description_formatted.xml")
+    tree = ET.parse(model_xml)
+    root = tree.getroot()
+
+    for geom in root.findall(".//geom"):
+        if geom.get("class") != "collision":
+            continue
+
+        mesh_name = geom.get("mesh")
+        if mesh_name in ACTIVE_COLLISION_MESHES:
+            geom.set("contype", "1")
+            geom.set("conaffinity", "1")
+        else:
+            geom.set("contype", "0")
+            geom.set("conaffinity", "0")
+
+        if mesh_name in FOOT_COLLISION_MESHES:
+            geom.set("priority", "2")
+            geom.set("condim", "6")
+            geom.set("friction", "2.0 0.15 0.01")
+            geom.set("solref", "0.01 1")
+            geom.set("solimp", "0.9 0.95 0.008")
+
+    ET.indent(tree, space="  ")
+    tree.write(model_xml, encoding="unicode", xml_declaration=False)
+
+
+def write_spawn_keyframe(context, *args, **kwargs):
+    keyframe_name = LaunchConfiguration("initial_keyframe").perform(context).strip()
+    if not keyframe_name:
+        return []
+
+    model_dir = "/tmp/mujoco"
+    model_scene_xml = os.path.join(model_dir, "scene.xml")
     spawn_x = float(LaunchConfiguration("spawn_x").perform(context))
     spawn_y = float(LaunchConfiguration("spawn_y").perform(context))
     spawn_z = float(LaunchConfiguration("spawn_z").perform(context))
     spawn_yaw = float(LaunchConfiguration("spawn_yaw").perform(context))
 
+    import mujoco
+
+    patch_mujoco_collisions(model_dir)
+
+    model = mujoco.MjModel.from_xml_path(model_scene_xml)
+    free_joint_id = None
+    for joint_id in range(model.njnt):
+        if model.jnt_type[joint_id] == mujoco.mjtJoint.mjJNT_FREE:
+            free_joint_id = joint_id
+            break
+    if free_joint_id is None:
+        raise RuntimeError(f"No free joint found in {model_scene_xml}")
+
+    qpos = [float(value) for value in model.qpos0]
+    qvel = [0.0] * model.nv
+    ctrl = [0.0] * model.nu
     half_yaw = 0.5 * spawn_yaw
-    qpos = [
+    free_qpos_adr = model.jnt_qposadr[free_joint_id]
+    qpos[free_qpos_adr : free_qpos_adr + 7] = [
         spawn_x,
         spawn_y,
         spawn_z,
@@ -71,35 +131,41 @@ def write_spawn_mujoco_inputs(source_path, output_path, context):
         0.0,
         0.0,
         math.sin(half_yaw),
-        *STAND_JOINT_POSITIONS,
     ]
-    qvel = [0.0] * 18
 
-    tree = ET.parse(source_path)
+    for joint_name, joint_position in NEUTRAL_JOINT_POSITIONS.items():
+        joint_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, joint_name)
+        if joint_id < 0:
+            raise RuntimeError(f"Joint '{joint_name}' not found in {model_scene_xml}")
+        qpos[int(model.jnt_qposadr[joint_id])] = joint_position
+
+    for actuator_id in range(model.nu):
+        joint_id = int(model.actuator_trnid[actuator_id][0])
+        joint_name = mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_JOINT, joint_id)
+        if joint_name in NEUTRAL_JOINT_POSITIONS:
+            ctrl[actuator_id] = NEUTRAL_JOINT_POSITIONS[joint_name]
+
+    tree = ET.parse(model_scene_xml)
     root = tree.getroot()
-    raw_inputs = root.find("raw_inputs")
-    if raw_inputs is None:
-        raise RuntimeError(f"Missing <raw_inputs> in {source_path}")
-
-    keyframe = raw_inputs.find("keyframe")
+    keyframe = root.find("keyframe")
     if keyframe is None:
-        keyframe = ET.SubElement(raw_inputs, "keyframe")
+        keyframe = ET.SubElement(root, "keyframe")
 
     spawn_key = None
     for key in keyframe.findall("key"):
-        if key.get("name") == "spawn":
+        if key.get("name") == keyframe_name:
             spawn_key = key
             break
     if spawn_key is None:
-        spawn_key = ET.SubElement(keyframe, "key", {"name": "spawn"})
+        spawn_key = ET.SubElement(keyframe, "key", {"name": keyframe_name})
 
     spawn_key.set("qpos", format_mjcf_numbers(qpos))
     spawn_key.set("qvel", format_mjcf_numbers(qvel))
-    spawn_key.set("ctrl", format_mjcf_numbers(STAND_JOINT_POSITIONS))
+    spawn_key.set("ctrl", format_mjcf_numbers(ctrl))
 
     ET.indent(tree, space="  ")
-    tree.write(output_path, encoding="unicode", xml_declaration=False)
-    return output_path
+    tree.write(model_scene_xml, encoding="unicode", xml_declaration=False)
+    return []
 
 
 def create_nodes(context, *args, **kwargs):
@@ -114,12 +180,7 @@ def create_nodes(context, *args, **kwargs):
 
     robot_urdf_path = os.path.join(edu_description_share, "urdf", "edu_mujoco.urdf.xacro")
     scene_xml_path = os.path.join(edu_description_share, "urdf", "scene.xml")
-    mujoco_inputs_template_path = os.path.join(edu_description_share, "urdf", "mujoco_inputs.xml")
-    mujoco_inputs_path = write_spawn_mujoco_inputs(
-        mujoco_inputs_template_path,
-        os.path.join(model_dir, "mujoco_inputs.xml"),
-        context,
-    )
+    mujoco_inputs_path = os.path.join(edu_description_share, "urdf", "mujoco_inputs.xml")
     ros2_control_params_file = os.path.join(
         sim_ign_dog_share, "config", "d1_mujoco_controllers.yaml"
     )
@@ -296,6 +357,7 @@ def create_nodes(context, *args, **kwargs):
             OnProcessExit(
                 target_action=xacro2mjcf,
                 on_exit=[
+                    OpaqueFunction(function=write_spawn_keyframe),
                     rviz_node,
                     TimerAction(
                         period=LaunchConfiguration("mujoco_start_delay"),
@@ -352,7 +414,7 @@ def generate_launch_description():
             DeclareLaunchArgument("initial_keyframe", default_value="spawn"),
             DeclareLaunchArgument("spawn_x", default_value="0.0"),
             DeclareLaunchArgument("spawn_y", default_value="0.0"),
-            DeclareLaunchArgument("spawn_z", default_value="0.45"),
+            DeclareLaunchArgument("spawn_z", default_value="0.5"),
             DeclareLaunchArgument("spawn_yaw", default_value="0.0"),
             DeclareLaunchArgument("controller_manager", default_value="/controller_manager"),
             DeclareLaunchArgument("controller_manager_timeout", default_value="60.0"),

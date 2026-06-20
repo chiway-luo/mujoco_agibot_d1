@@ -53,3 +53,8 @@ CHAMP 发布 JointTrajectory 关节角度 -> legs_controller 使用 position com
 
 ### 解决方案
 参考 [ssh端口转发](https://github.com/chiway-luo/ssh-x11-forwarding-guide.git) , 将仿真环境部署在远程服务器上,通过ssh连接进行仿真环境的使用
+
+
+[quadruped_controller_node-8] [INFO] [1781946458.651894168] [rclcpp]: Successfully parsed urdf file
+[state_estimation_node-9] [INFO] [1781946458.653284829] [rclcpp]: Successfully parsed urdf file
+

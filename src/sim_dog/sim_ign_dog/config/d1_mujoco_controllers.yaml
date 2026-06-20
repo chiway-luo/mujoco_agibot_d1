@@ -17,6 +17,8 @@ legs_controller:
     joints: [FL_ABAD_JOINT, FL_HIP_JOINT, FL_KNEE_JOINT, FR_ABAD_JOINT, FR_HIP_JOINT, FR_KNEE_JOINT, RL_ABAD_JOINT, RL_HIP_JOINT, RL_KNEE_JOINT, RR_ABAD_JOINT, RR_HIP_JOINT, RR_KNEE_JOINT]
     command_interfaces: [position]
     state_interfaces: [position, velocity]
+    open_loop_control: true
+    allow_integration_in_goal_trajectories: true 
     state_publish_rate: 50.0
     action_monitor_rate: 20.0
     interpolate_from_desired_state: true # 在接收到新的目标位置时，是否从当前状态插值到目标状态，而不是直接跳转
