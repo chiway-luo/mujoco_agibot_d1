@@ -17,7 +17,6 @@
   <exec_depend>joint_state_broadcaster</exec_depend>
   <exec_depend>joint_trajectory_controller</exec_depend>
   <exec_depend>imu_sensor_broadcaster</exec_depend>
-  <exec_depend>pose_broadcaster</exec_depend>
   <exec_depend>mujoco_ros2_control</exec_depend>
   <exec_depend>edu_description</exec_depend>
 

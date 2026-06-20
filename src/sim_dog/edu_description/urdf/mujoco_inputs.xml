@@ -1,0 +1,53 @@
+<mujoco_inputs>
+  <raw_inputs>
+    <default>
+      <default class="visual">
+        <geom contype="0" conaffinity="0" group="1"/>
+      </default>
+      <default class="collision">
+        <geom contype="1" conaffinity="1" group="3" condim="6" friction="2.0 0.15 0.01"/>
+      </default>
+    </default>
+
+    <option
+      integrator="implicitfast"
+      gravity="0 0 -9.81"
+      impratio="10"
+      cone="elliptic"
+      solver="Newton">
+      <flag multiccd="enable"/>
+    </option>
+
+    <actuator>
+      <position name="FL_ABAD_JOINT_position" joint="FL_ABAD_JOINT" kp="80" kv="8" ctrlrange="-0.4887 0.4887" forcerange="-48 48"/>
+      <position name="FL_HIP_JOINT_position" joint="FL_HIP_JOINT" kp="120" kv="8" ctrlrange="-1.1519 2.967" forcerange="-48 48"/>
+      <position name="FL_KNEE_JOINT_position" joint="FL_KNEE_JOINT" kp="120" kv="8" ctrlrange="-2.723 -0.602" forcerange="-48 48"/>
+
+      <position name="FR_ABAD_JOINT_position" joint="FR_ABAD_JOINT" kp="80" kv="8" ctrlrange="-0.4887 0.4887" forcerange="-48 48"/>
+      <position name="FR_HIP_JOINT_position" joint="FR_HIP_JOINT" kp="120" kv="8" ctrlrange="-1.1519 2.967" forcerange="-48 48"/>
+      <position name="FR_KNEE_JOINT_position" joint="FR_KNEE_JOINT" kp="120" kv="8" ctrlrange="-2.723 -0.602" forcerange="-48 48"/>
+
+      <position name="RL_ABAD_JOINT_position" joint="RL_ABAD_JOINT" kp="80" kv="8" ctrlrange="-0.4887 0.4887" forcerange="-48 48"/>
+      <position name="RL_HIP_JOINT_position" joint="RL_HIP_JOINT" kp="120" kv="8" ctrlrange="-1.1519 2.967" forcerange="-48 48"/>
+      <position name="RL_KNEE_JOINT_position" joint="RL_KNEE_JOINT" kp="120" kv="8" ctrlrange="-2.723 -0.602" forcerange="-48 48"/>
+
+      <position name="RR_ABAD_JOINT_position" joint="RR_ABAD_JOINT" kp="80" kv="8" ctrlrange="-0.4887 0.4887" forcerange="-48 48"/>
+      <position name="RR_HIP_JOINT_position" joint="RR_HIP_JOINT" kp="120" kv="8" ctrlrange="-1.1519 2.967" forcerange="-48 48"/>
+      <position name="RR_KNEE_JOINT_position" joint="RR_KNEE_JOINT" kp="120" kv="8" ctrlrange="-2.723 -0.602" forcerange="-48 48"/>
+    </actuator>
+
+    <sensor>
+      <gyro name="imu_in_base_gyro" site="base_link" noise="5e-4" cutoff="34.9"/>
+      <accelerometer name="imu_in_base_accel" site="base_link" noise="1e-2" cutoff="157"/>
+      <framequat name="imu_in_base_quat" objtype="site" objname="base_link"/>
+    </sensor>
+
+    <keyframe>
+      <key
+        name="spawn"
+        qpos="0 0 0.45 1 0 0 0 0 1.0475260019302368 -1.9930626153945923 0 1.0475260019302368 -1.9930626153945923 0 1.0475260019302368 -1.9930626153945923 0 1.0475260019302368 -1.9930626153945923"
+        qvel="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0"
+        ctrl="0 1.0475260019302368 -1.9930626153945923 0 1.0475260019302368 -1.9930626153945923 0 1.0475260019302368 -1.9930626153945923 0 1.0475260019302368 -1.9930626153945923"/>
+    </keyframe>
+  </raw_inputs>
+</mujoco_inputs>

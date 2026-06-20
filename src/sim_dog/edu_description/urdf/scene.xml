@@ -1,4 +1,6 @@
-<mujoco model="panda scene">
+<mujoco model="d1 scene">
+    <include file="mujoco_description_formatted.xml"/>
+
     <statistic center="0.3 0 0.4" extent="1"/>
 
     <visual>

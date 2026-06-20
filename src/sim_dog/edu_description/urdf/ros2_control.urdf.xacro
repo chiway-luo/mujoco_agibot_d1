@@ -1,11 +1,16 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
 
-    
 	<xacro:macro name="d1_ros2_control"
 							 params="system_name:=D1MujocoSystem
 											 mujoco:=true
-											 use_fake_hardware:=false 
+											 mujoco_model:=/tmp/mujoco/scene.xml
+											 headless:=false
+											 sim_speed_factor:=-1.0
+											 camera_publish_rate:=20.0
+											 lidar_publish_rate:=10.0
+											 initial_keyframe:=spawn
+											 use_fake_hardware:=false
 											 fake_sensor_commands:=false">
 		<ros2_control name="${system_name}" type="system">
 			<hardware>
@@ -15,7 +20,15 @@
 					<param name="state_following_offset">0.0</param>
 				</xacro:if>
 				<xacro:if value="${mujoco}">
-					<plugin>mujoco_ros2_control/MujocoSystem</plugin>
+					<plugin>mujoco_ros2_control/MujocoSystemInterface</plugin>
+					<param name="mujoco_model">${mujoco_model}</param>
+					<param name="headless">${headless}</param>
+					<param name="sim_speed_factor">${sim_speed_factor}</param>
+					<param name="camera_publish_rate">${camera_publish_rate}</param>
+					<param name="lidar_publish_rate">${lidar_publish_rate}</param>
+					<param name="initial_keyframe">${initial_keyframe}</param>
+					<param name="odom_free_joint_name">floating_base_joint</param>
+					<param name="odom_topic">odom</param>
 				</xacro:if>
 			</hardware>
 
@@ -33,7 +46,6 @@
 					<state_interface name="velocity">
 						<param name="initial_value">0.0</param>
 					</state_interface>
-					<state_interface name="effort"/>
 				</joint>
 			</xacro:macro>
 
@@ -50,8 +62,9 @@
 			<xacro:d1_joint joint_name="RR_HIP_JOINT" initial_position="1.0475260019302368"/>
 			<xacro:d1_joint joint_name="RR_KNEE_JOINT" initial_position="-1.9930626153945923"/>
 
-			<sensor name="imu_in_base">
-				<param name="site">imu_in_base</param>
+			<sensor name="imu_in_base_imu">
+				<param name="mujoco_type">imu</param>
+				<param name="mujoco_sensor_name">imu_in_base</param>
 				<state_interface name="orientation.x"/>
 				<state_interface name="orientation.y"/>
 				<state_interface name="orientation.z"/>
@@ -64,16 +77,6 @@
 				<state_interface name="linear_acceleration.z"/>
 			</sensor>
 
-			<sensor name="base_pose">
-				<param name="body">base_link</param>
-				<state_interface name="position.x"/>
-				<state_interface name="position.y"/>
-				<state_interface name="position.z"/>
-				<state_interface name="orientation.x"/>
-				<state_interface name="orientation.y"/>
-				<state_interface name="orientation.z"/>
-				<state_interface name="orientation.w"/>
-			</sensor>
 		</ros2_control>
 	</xacro:macro>
 

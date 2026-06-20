@@ -1,71 +1,163 @@
-from launch import LaunchDescription
-from launch_ros.actions import Node
 import os
-# 封装终端指令相关类--------------
-from launch.actions import ExecuteProcess
-# from launch.substitutions import FindExecutable   #FindExecutable(name="ros2")
-# 参数声明与获取-----------------
-from launch.actions import DeclareLaunchArgument
-from launch.substitutions import LaunchConfiguration
-# from launch.conditions import IfCondition #判断是否执行
-from launch.conditions import IfCondition #判断是否执行
-# from launch.conditions import UnlessCondition #取反
-# from launch.substitutions import PythonExpression #运行时计算表达式
-# 文件包含相关-------------------
-from launch.actions import IncludeLaunchDescription
-from launch.launch_description_sources import PythonLaunchDescriptionSource
-# 分组相关----------------------
-# from launch_ros.actions import PushRosNamespace
-from launch.actions import GroupAction
-# 事件相关----------------------
-from launch.event_handlers import OnProcessExit
-from launch.actions import RegisterEventHandler, OpaqueFunction
-# 获取功能包下share目录路径-------
-from ament_index_python.packages import get_package_share_directory
-# urdf文件处理相关--------------
-# from launch_ros.parameter_descriptions import ParameterValue
-# from launch.substitutions import Command
-from launch.actions import TimerAction
-from launch.actions import ExecuteProcess
-from launch.actions import SetEnvironmentVariable
+import math
+import xml.etree.ElementTree as ET
+from xml.dom import minidom
+
 import xacro
-from launch_ros.actions import SetRemap
+from ament_index_python.packages import get_package_share_directory
+from launch import LaunchDescription
+from launch.actions import (
+    DeclareLaunchArgument,
+    ExecuteProcess,
+    GroupAction,
+    IncludeLaunchDescription,
+    OpaqueFunction,
+    RegisterEventHandler,
+    TimerAction,
+)
+from launch.conditions import IfCondition
+from launch.event_handlers import OnProcessExit
+from launch.launch_description_sources import PythonLaunchDescriptionSource
+from launch.substitutions import LaunchConfiguration
+from launch_ros.actions import Node, SetRemap
+from launch_ros.parameter_descriptions import ParameterValue
+
+
+STAND_JOINT_POSITIONS = [
+    0.0,
+    1.0475260019302368,
+    -1.9930626153945923,
+    0.0,
+    1.0475260019302368,
+    -1.9930626153945923,
+    0.0,
+    1.0475260019302368,
+    -1.9930626153945923,
+    0.0,
+    1.0475260019302368,
+    -1.9930626153945923,
+]
+
+
+def format_mjcf_numbers(values):
+    return " ".join(f"{value:.12g}" for value in values)
+
+
+def strip_mujoco_tags(xml_text):
+    dom = minidom.parseString(xml_text)
+    for mujoco_node in list(dom.getElementsByTagName("mujoco")):
+        mujoco_node.parentNode.removeChild(mujoco_node)
+    return dom.toxml()
+
+
+def prepare_mujoco_output(model_dir, model_scene_xml):
+    os.makedirs(model_dir, exist_ok=True)
+    if os.path.lexists(model_scene_xml):
+        os.unlink(model_scene_xml)
+
+
+def write_spawn_mujoco_inputs(source_path, output_path, context):
+    spawn_x = float(LaunchConfiguration("spawn_x").perform(context))
+    spawn_y = float(LaunchConfiguration("spawn_y").perform(context))
+    spawn_z = float(LaunchConfiguration("spawn_z").perform(context))
+    spawn_yaw = float(LaunchConfiguration("spawn_yaw").perform(context))
+
+    half_yaw = 0.5 * spawn_yaw
+    qpos = [
+        spawn_x,
+        spawn_y,
+        spawn_z,
+        math.cos(half_yaw),
+        0.0,
+        0.0,
+        math.sin(half_yaw),
+        *STAND_JOINT_POSITIONS,
+    ]
+    qvel = [0.0] * 18
+
+    tree = ET.parse(source_path)
+    root = tree.getroot()
+    raw_inputs = root.find("raw_inputs")
+    if raw_inputs is None:
+        raise RuntimeError(f"Missing <raw_inputs> in {source_path}")
+
+    keyframe = raw_inputs.find("keyframe")
+    if keyframe is None:
+        keyframe = ET.SubElement(raw_inputs, "keyframe")
+
+    spawn_key = None
+    for key in keyframe.findall("key"):
+        if key.get("name") == "spawn":
+            spawn_key = key
+            break
+    if spawn_key is None:
+        spawn_key = ET.SubElement(keyframe, "key", {"name": "spawn"})
+
+    spawn_key.set("qpos", format_mjcf_numbers(qpos))
+    spawn_key.set("qvel", format_mjcf_numbers(qvel))
+    spawn_key.set("ctrl", format_mjcf_numbers(STAND_JOINT_POSITIONS))
+
+    ET.indent(tree, space="  ")
+    tree.write(output_path, encoding="unicode", xml_declaration=False)
+    return output_path
+
 
 def create_nodes(context, *args, **kwargs):
-    create_node = LaunchDescription()
-    use_rviz = LaunchConfiguration("rviz")
+    ld = LaunchDescription()
 
-    model_dir = "/tmp/mujoco" # MJCF文件生成目录
-    model_xml = os.path.join(model_dir, "main.xml") # MJCF文件路径
+    model_dir = "/tmp/mujoco"
+    model_scene_xml = os.path.join(model_dir, "scene.xml")
+    prepare_mujoco_output(model_dir, model_scene_xml)
 
     edu_description_share = get_package_share_directory("edu_description")
     sim_ign_dog_share = get_package_share_directory("sim_ign_dog")
-    mujoco_ros2_control_share = get_package_share_directory("mujoco_ros2_control")
 
     robot_urdf_path = os.path.join(edu_description_share, "urdf", "edu_mujoco.urdf.xacro")
-    robot_description = {
-        "robot_description": xacro.process_file(robot_urdf_path).toprettyxml(indent="  ")
-    }
+    scene_xml_path = os.path.join(edu_description_share, "urdf", "scene.xml")
+    mujoco_inputs_template_path = os.path.join(edu_description_share, "urdf", "mujoco_inputs.xml")
+    mujoco_inputs_path = write_spawn_mujoco_inputs(
+        mujoco_inputs_template_path,
+        os.path.join(model_dir, "mujoco_inputs.xml"),
+        context,
+    )
+    ros2_control_params_file = os.path.join(
+        sim_ign_dog_share, "config", "d1_mujoco_controllers.yaml"
+    )
 
-    ros2_control_params_file = os.path.join(sim_ign_dog_share, "config", "d1_mujoco_controllers.yaml")
-    sensor_params_file = os.path.join(sim_ign_dog_share, "config", "d1_mujoco_sensors.yaml")
+    robot_description_xml = xacro.process_file(
+        robot_urdf_path,
+        mappings={
+            "mujoco_model": model_scene_xml,
+            "headless": LaunchConfiguration("headless").perform(context),
+            "sim_speed_factor": LaunchConfiguration("sim_speed_factor").perform(context),
+            "camera_publish_rate": LaunchConfiguration("camera_publish_rate").perform(context),
+            "lidar_publish_rate": LaunchConfiguration("lidar_publish_rate").perform(context),
+            "initial_keyframe": LaunchConfiguration("initial_keyframe").perform(context),
+        },
+    ).toprettyxml(indent="  ")
+    robot_description = {"robot_description": robot_description_xml}
+    mjcf_source_xml = strip_mujoco_tags(robot_description_xml)
 
-    xacro2mjcf = Node(
-        package="mujoco_ros2_control",
-        executable="xacro2mjcf.py",
-        parameters=[
-            {"robot_descriptions": [robot_description["robot_description"]]},
-            {"input_files": [os.path.join(edu_description_share, "urdf", "scene.xml")]},
-            {"output_file": model_xml},
-            {"mujoco_files_path": model_dir},
-            {"base_link": "base_link"},
-            {"floating": True},
-            {"initial_position": "0 0 0.75"},
-            {"initial_orientation": "0 0 0"},
+    xacro2mjcf = ExecuteProcess(
+        cmd=[
+            "ros2",
+            "run",
+            "mujoco_ros2_control",
+            "robot_description_to_mjcf.sh",
+            "--robot_description",
+            mjcf_source_xml,
+            "--mujoco_inputs",
+            mujoco_inputs_path,
+            "--output",
+            model_dir,
+            "--save_only",
+            "--scene",
+            scene_xml_path,
+            "--add_free_joint",
         ],
         output="screen",
     )
-    create_node.add_action(xacro2mjcf)
+    ld.add_action(xacro2mjcf)
 
     robot_state_publisher = Node(
         package="robot_state_publisher",
@@ -74,219 +166,156 @@ def create_nodes(context, *args, **kwargs):
         output="screen",
         remappings=[("/joint_states", "/get_joint_states")],
     )
-    create_node.add_action(robot_state_publisher)
-
+    ld.add_action(robot_state_publisher)
 
     mujoco_node = Node(
         package="mujoco_ros2_control",
-        executable="mujoco_ros2_control",
+        executable="ros2_control_node",
         parameters=[
             robot_description,
             ros2_control_params_file,
-            sensor_params_file,
-            {"simulation_frequency": 500.0},
-            {"realtime_factor": 1.0},
-            {"robot_model_path": model_xml},
-            {"show_gui": True},
-        ],
-        remappings=[
-            ("/controller_manager/robot_description", "/robot_description"),
-            ("/joint_states", "/get_joint_states"),
+            {
+                "use_sim_time": True,
+                "headless": ParameterValue(
+                    LaunchConfiguration("headless"),
+                    value_type=bool,
+                ),
+                "sim_speed_factor": ParameterValue(
+                    LaunchConfiguration("sim_speed_factor"),
+                    value_type=float,
+                ),
+                "camera_publish_rate": ParameterValue(
+                    LaunchConfiguration("camera_publish_rate"),
+                    value_type=float,
+                ),
+                "lidar_publish_rate": ParameterValue(
+                    LaunchConfiguration("lidar_publish_rate"),
+                    value_type=float,
+                ),
+            },
         ],
         output="screen",
+        remappings=[("/joint_states", "/get_joint_states")],
     )
 
-    # 发布mujoco中的关节信息到 ROS2 的 /joint_states 话题，供 CHAMP 和其他节点使用
-    # joint_state_broadcaster = Node(
-    #     package="controller_manager",
-    #     executable="spawner",
-    #     arguments=["joint_state_broadcaster", "--controller-manager", ["/", "controller_manager"]],
-    #     output="screen",
-    #     remappings=[
-    #         ("/joint_states", "/get_joint_states")
-    #     ]
-    # )
-    # create_node.add_action(joint_state_broadcaster)
+    controller_manager = LaunchConfiguration("controller_manager")
+    controller_manager_timeout = LaunchConfiguration("controller_manager_timeout")
 
     imu_broadcaster = Node(
         package="controller_manager",
         executable="spawner",
-        arguments=["imu_broadcaster", "--controller-manager", ["/", "controller_manager"], "--param-file", ros2_control_params_file],
+        name="imu_spawner",
+        arguments=[
+            "imu_broadcaster",
+            "--controller-manager",
+            controller_manager,
+            "--controller-manager-timeout",
+            controller_manager_timeout,
+            "--param-file",
+            ros2_control_params_file,
+        ],
         output="screen",
     )
 
-    # 发布机器人位姿到 /tf，供 CHAMP 和其他节点使用；如果你的模型没有 IMU，可以把这个改成 base_pose_broadcaster
-    base_pose_broadcaster = Node(
+    jsb_spawner = Node(
         package="controller_manager",
         executable="spawner",
-        arguments=["base_pose_broadcaster", "--controller-manager", ["/", "controller_manager"], "--param-file", ros2_control_params_file],
-        output="screen",
-    )
-
-    # legs_controller = Node(
-    #     package="controller_manager",
-    #     executable="spawner",
-    #     arguments=["legs_controller", "--controller-manager", ["/", "controller_manager"], "--param-file", ros2_control_params_file],
-    #     output="screen",
-    # )
-    # create_node.add_action(legs_controller)
-
-    rviz_config = os.path.join(sim_ign_dog_share, "rviz", "d1_nav2.rviz")
-    rviz_node = Node(
-        condition=IfCondition(use_rviz),
-        package="rviz2",
-        executable="rviz2",
-        arguments=["-d", rviz_config],
-        output="screen",
-    )
-
-
-    #附加内容
-    # If你的 controller_manager 实际在模型命名空间下（例如 /model/go2/controller_manager），启动时把这个参数改掉
-    # ld.add_action(DeclareLaunchArgument('controller_manager', default_value='/controller_manager'))
-    create_node.add_action(DeclareLaunchArgument('controller_manager', default_value='/controller_manager'))
-    create_node.add_action(DeclareLaunchArgument('controller_manager_timeout', default_value='60.0'))
-    create_node.add_action(DeclareLaunchArgument('controllers_delay', default_value='4.0'))
-    create_node.add_action(DeclareLaunchArgument('champ_delay', default_value='1.0'))
-    create_node.add_action(DeclareLaunchArgument('mujoco_start_delay', default_value='3.0'))
-
-
-    controller_manager_timeout = LaunchConfiguration('controller_manager_timeout')
-    controller_manager = LaunchConfiguration('controller_manager')
-    controllers_delay = LaunchConfiguration('controllers_delay')
-    champ_delay = LaunchConfiguration('champ_delay')
-    mujoco_start_delay = LaunchConfiguration('mujoco_start_delay')
-
-    # 控制器生成器：等待 controller_manager 服务可用，且按顺序启动（先 joint_state_broadcaster 再 legs_controller）
-    jsb_spawner = Node(
-        package='controller_manager',
-        executable='spawner',
-        name='jsb_spawner',
+        name="jsb_spawner",
         arguments=[
-            'joint_state_broadcaster',
-            '--controller-manager', controller_manager,
-            '--controller-manager-timeout', controller_manager_timeout,
+            "joint_state_broadcaster",
+            "--controller-manager",
+            controller_manager,
+            "--controller-manager-timeout",
+            controller_manager_timeout,
         ],
-        output='screen',
-        remappings=[
-            ("/joint_states", "/get_joint_states"),
-        ]
+        output="screen",
     )
 
     legs_spawner = Node(
-        package='controller_manager',
-        executable='spawner',
-        name='legs_spawner',
+        package="controller_manager",
+        executable="spawner",
+        name="legs_spawner",
         arguments=[
-            'legs_controller',
-            '--controller-manager', controller_manager,
-            '--controller-manager-timeout', controller_manager_timeout,
+            "legs_controller",
+            "--controller-manager",
+            controller_manager,
+            "--controller-manager-timeout",
+            controller_manager_timeout,
         ],
-        output='screen',
-        remappings=[
-            ("/joint_states", "/get_joint_states"),
-            # ("/legs_controller/joint_trajectory","/joint_command")
-            # 如果 legs_controller 的 action 接口是 /legs_controller/joint_trajectory，
-            # 且 CHAMP 发送到 /joint_command，则需要这个 remapping；
-
-        ]
+        output="screen",
     )
 
+    rviz_node = Node(
+        condition=IfCondition(LaunchConfiguration("rviz")),
+        package="rviz2",
+        executable="rviz2",
+        arguments=["-d", os.path.join(sim_ign_dog_share, "rviz", "d1_nav2.rviz")],
+        output="screen",
+    )
 
-    # create_node.add_action(TimerAction(period=controllers_delay, actions=[jsb_spawner]))
-
-    #启动cham
-    config_pkg_share = os.path.join(get_package_share_directory('edu_config'))
-    descr_pkg_share = os.path.join(get_package_share_directory('edu_description'))
-
+    config_pkg_share = get_package_share_directory("edu_config")
     champ_bringup_launch = IncludeLaunchDescription(
         launch_description_source=PythonLaunchDescriptionSource(
             os.path.join(
-                get_package_share_directory('champ_bringup'),
-                'launch',
-                'bringup.launch.py'
+                get_package_share_directory("champ_bringup"),
+                "launch",
+                "bringup.launch.py",
             )
         ),
         launch_arguments={
-            # "description_path": default_model_path,
-            # "joints_map_path": joints_config,
-            # "links_map_path": links_config,
-            # "gait_config_path": gait_config,
-            # "use_sim_time": LaunchConfiguration("use_sim_time"),
-            # "robot_name": LaunchConfiguration("robot_name"),
-            # "gazebo": "true",
-            # "lite": LaunchConfiguration("lite"),
-            # "rviz": LaunchConfiguration("rviz"),
-            # "joint_controller_topic": "joint_group_effort_controller/joint_trajectory",
-            # "hardware_connected": "false",
-            # "publish_foot_contacts": "false",
-            # "close_loop_odom": "true",
-            'use_sim_time': 'true',
-            'description_path': robot_urdf_path,
-            'rviz': 'false',#仿真环境已经启动rviz了
-            'gazebo': 'true',#在gazebo中运行
-            'base_link_frame': 'base_link',#d1_dog模型为base_link
-            'publish_odom_tf': 'false',#不发布odom到base的tf,由ekf负责
-            'publish_foot_contacts': 'false',#仿真未提供 foot_contacts
-            'use_foot_contacts': 'false',#仿真未提供 foot_contacts 时禁用
-            'use_base_to_footprint_ekf': 'false',#禁用 base_to_footprint EKF
-            'use_footprint_to_odom_ekf': 'false',#启用 footprint_to_odom EKF
-            'joint_controller_topic': 'legs_controller/joint_trajectory',#关节控制话题 直接对接controller实际订阅的话题
-            # 'joint_controller_topic': 'joint_command',#关节控制话题（旧，已弃用）
-            'gait_config_path': os.path.join(config_pkg_share,'config','gait','gait.yaml'),
-            'joints_map_path': os.path.join(config_pkg_share,'config','joints','joints.yaml'),
-            'links_map_path': os.path.join(config_pkg_share,'config','links','links.yaml'),
-
-            "lite": 'true', #使用精简模式
-            "hardware_connected": 'false', #不连接真实硬件
-            "close_loop_odom": 'true', #使用闭环里程计
+            "use_sim_time": "true",
+            "description_path": robot_urdf_path,
+            "rviz": "false",
+            "gazebo": "true",
+            "base_link_frame": "base_link",
+            "publish_odom_tf": "false",
+            "publish_foot_contacts": "false",
+            "use_foot_contacts": "false",
+            "use_base_to_footprint_ekf": "false",
+            "use_footprint_to_odom_ekf": "false",
+            "joint_controller_topic": "legs_controller/joint_trajectory",
+            "gait_config_path": os.path.join(config_pkg_share, "config", "gait", "gait.yaml"),
+            "joints_map_path": os.path.join(config_pkg_share, "config", "joints", "joints.yaml"),
+            "links_map_path": os.path.join(config_pkg_share, "config", "links", "links.yaml"),
+            "lite": "true",
+            "hardware_connected": "false",
+            "close_loop_odom": "true",
         }.items(),
     )
 
-    champ_remap = GroupAction([
-            SetRemap(
-                src='/joint_states',
-                dst='/get_joint_states'
-            ),
-            # 如果 CHAMP 内部用的是相对话题 joint_states，也可以加这一条
-            SetRemap(
-                src='joint_states',
-                dst='get_joint_states'
-            ),
-            champ_bringup_launch
+    champ_remap = GroupAction(
+        [
+            SetRemap(src="/joint_states", dst="/get_joint_states"),
+            SetRemap(src="joint_states", dst="get_joint_states"),
+            champ_bringup_launch,
         ]
     )
 
-
-    #### 启动顺序控制
-    # Gazebo 旧链路是 controller active 之后再启动 CHAMP。MuJoCo 也按这个顺序走：
-    # xacro2mjcf -> mujoco_node -> controller spawners -> CHAMP。
-
-    start_mujoco = RegisterEventHandler(
-        OnProcessExit(
-            target_action=xacro2mjcf,
-            on_exit=[
-                rviz_node,
-                TimerAction(
-                    period=mujoco_start_delay,
-                    actions=[
-                        mujoco_node,
-                        TimerAction(
-                            period=controllers_delay,
-                            actions=[
-                                imu_broadcaster,
-                                base_pose_broadcaster,
-                                jsb_spawner,
-                            ],
-                        ),
-                    ],
-                ),
-            ],
+    ld.add_action(
+        RegisterEventHandler(
+            OnProcessExit(
+                target_action=xacro2mjcf,
+                on_exit=[
+                    rviz_node,
+                    TimerAction(
+                        period=LaunchConfiguration("mujoco_start_delay"),
+                        actions=[
+                            mujoco_node,
+                            TimerAction(
+                                period=LaunchConfiguration("controllers_delay"),
+                                actions=[
+                                    imu_broadcaster,
+                                    jsb_spawner,
+                                ],
+                            ),
+                        ],
+                    ),
+                ],
+            )
         )
     )
-    create_node.add_action(start_mujoco)
 
-    create_node.add_action(
+    ld.add_action(
         RegisterEventHandler(
             OnProcessExit(
                 target_action=jsb_spawner,
@@ -295,23 +324,41 @@ def create_nodes(context, *args, **kwargs):
         )
     )
 
-    create_node.add_action(
+    ld.add_action(
         RegisterEventHandler(
             OnProcessExit(
                 target_action=legs_spawner,
-                on_exit=[TimerAction(period=champ_delay, actions=[champ_remap])],
+                on_exit=[
+                    TimerAction(
+                        period=LaunchConfiguration("champ_delay"),
+                        actions=[champ_remap],
+                    )
+                ],
             )
         )
     )
 
-
-    return create_node.entities
+    return ld.entities
 
 
 def generate_launch_description():
     return LaunchDescription(
         [
             DeclareLaunchArgument("rviz", default_value="true", description="Start rviz2"),
+            DeclareLaunchArgument("headless", default_value="false", description="Run MuJoCo without GUI"),
+            DeclareLaunchArgument("sim_speed_factor", default_value="-1.0"),
+            DeclareLaunchArgument("camera_publish_rate", default_value="20.0"),
+            DeclareLaunchArgument("lidar_publish_rate", default_value="10.0"),
+            DeclareLaunchArgument("initial_keyframe", default_value="spawn"),
+            DeclareLaunchArgument("spawn_x", default_value="0.0"),
+            DeclareLaunchArgument("spawn_y", default_value="0.0"),
+            DeclareLaunchArgument("spawn_z", default_value="0.45"),
+            DeclareLaunchArgument("spawn_yaw", default_value="0.0"),
+            DeclareLaunchArgument("controller_manager", default_value="/controller_manager"),
+            DeclareLaunchArgument("controller_manager_timeout", default_value="60.0"),
+            DeclareLaunchArgument("controllers_delay", default_value="4.0"),
+            DeclareLaunchArgument("champ_delay", default_value="1.0"),
+            DeclareLaunchArgument("mujoco_start_delay", default_value="1.0"),
             OpaqueFunction(function=create_nodes),
         ]
     )

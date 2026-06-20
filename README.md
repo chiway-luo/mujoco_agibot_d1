@@ -1,31 +1,26 @@
 使用champ开源算法,实现智元机器狗d1的mujoco仿真和导航
 > 测试阶段,请勿使用
 ===
-## 配置流程
-1. 需要从github上克隆mujoco_ros2_control仓库,并放置在src目录下
-```bash
-cd src/
-git clone https://github.com/dfki-ric/mujoco_ros2_control
-```
-2. 为了降低编译时间,删除examples目录
-```bash
-cd mujoco_ros2_control
-rm -rf examples
-```
 
 ## 使用方式
-mujoco文档见 [mujoco](src/mujoco_ros2_control/mujoco_ros2_control/README.md)
+mujoco文档见 [mujoco_use.md](mujoco_use.md)
 - 克隆本仓库
 ```bash
 
 ```
 - 安装依赖
 ```
-
+sudo apt update
+sudo apt install ros-humble-mujoco-ros2-control
+ros2 run mujoco_ros2_control robot_description_to_mjcf.sh --install-only  # 安装机器人描述转换脚本
 ```
 - mujoco仿真环境启动
 ```
 ros2 launch sim_ign_dog d1_mujoco_sim_dog.launch.py
+```
+也可以使用兼容入口:
+```
+ros2 launch sim_ign_dog mujoco.launch.py
 ```
 
 
@@ -41,16 +36,19 @@ ros2 run teleop_twist_keyboard teleop_twist_keyboard
 - 基坐标系 base_link
 - 雷达坐标系 laser_up
 
-xacro2mjcf -> mujoco_node
-mujoco_node start -> imu_broadcaster, base_pose_broadcaster, rviz_node
+robot_description_to_mjcf.sh -> ros2_control_node
+ros2_control_node start -> imu_broadcaster, rviz_node
 controllers_delay -> jsb_spawner
 jsb_spawner exit -> legs_spawner
 legs_spawner exit -> CHAMP
 
 ## 话题说明
 - /get_joint_states 关节状态 mujoco -> ros2
-- /joint_command 关节命令 ros2 -> mujoco
+- /legs_controller/joint_trajectory 关节角度命令 CHAMP -> ros2_control -> mujoco
+- /odom MuJoCo floating_base_joint 里程计 mujoco -> ros2
 
+当前控制链路仍然是位置控制:
+CHAMP 发布 JointTrajectory 关节角度 -> legs_controller 使用 position command interface -> MuJoCo position actuator 跟踪角度。
 
 
 ### 解决方案
