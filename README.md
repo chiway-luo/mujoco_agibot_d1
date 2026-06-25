@@ -27,6 +27,8 @@ ros2 run teleop_twist_keyboard teleop_twist_keyboard
 ## 参考仓库
 - [chvmp/champ](https://github.com/chvmp/champ.git)
 
+注: 本仓库中的champ包修改了部分源码,以适配d1机器狗的mujoco仿真,请勿直接使用原版champ包
+
 ## 开发参考
 <!-- - 基坐标系 base_link
 - 雷达坐标系 laser_up -->
