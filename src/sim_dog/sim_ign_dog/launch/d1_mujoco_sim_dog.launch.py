@@ -48,23 +48,23 @@ FOOT_COLLISION_MESHES = {
 ACTIVE_COLLISION_MESHES = {"BASE_LINK", *FOOT_COLLISION_MESHES}
 
 
+# 用途：把 MuJoCo keyframe 中的 qpos/qvel/ctrl 数值列表转换成 MJCF 需要的空格分隔字符串。
+# 说明：限制有效数字长度，避免生成过长的小数字字符串，同时保持足够的仿真精度。
 def format_mjcf_numbers(values):
     return " ".join(f"{value:.12g}" for value in values)
 
 
-def strip_mujoco_tags(xml_text):
-    dom = minidom.parseString(xml_text)
-    for mujoco_node in list(dom.getElementsByTagName("mujoco")):
-        mujoco_node.parentNode.removeChild(mujoco_node)
-    return dom.toxml()
 
-
+# 用途：准备 /tmp/mujoco 输出目录，并清理上一次生成的 scene.xml。
+# 说明：避免旧的 MJCF 场景文件残留，确保每次 launch 都使用本次转换得到的新模型。
 def prepare_mujoco_output(model_dir, model_scene_xml):
     os.makedirs(model_dir, exist_ok=True)
     if os.path.lexists(model_scene_xml):
         os.unlink(model_scene_xml)
 
 
+# 用途：修正转换后的 MuJoCo 碰撞参数，只保留机身和足端参与主要碰撞。
+# 说明：降低非关键连杆碰撞带来的抖动和自碰撞风险，并为足端设置更适合落地接触的摩擦与求解参数。
 def patch_mujoco_collisions(model_dir):
     model_xml = os.path.join(model_dir, "mujoco_description_formatted.xml")
     tree = ET.parse(model_xml)
@@ -93,6 +93,8 @@ def patch_mujoco_collisions(model_dir):
     tree.write(model_xml, encoding="unicode", xml_declaration=False)
 
 
+# 用途：根据 spawn_x/spawn_y/spawn_z/spawn_yaw 写入 MuJoCo 初始 keyframe。
+# 说明：MuJoCo keyframe 需要完整 qpos/qvel/ctrl；这里用模型默认状态补齐，再覆盖 base 位姿和预设站立关节角。
 def write_spawn_keyframe(context, *args, **kwargs):
     keyframe_name = LaunchConfiguration("initial_keyframe").perform(context).strip()
     if not keyframe_name:
@@ -168,6 +170,8 @@ def write_spawn_keyframe(context, *args, **kwargs):
     return []
 
 
+# 用途：创建本 launch 文件的全部 ROS 2 launch action 和 node。
+# 说明：负责生成 MuJoCo 模型、启动 robot_state_publisher/MuJoCo/controller spawner/RViz/CHAMP，并定义它们的启动顺序。
 def create_nodes(context, *args, **kwargs):
     ld = LaunchDescription()
 
@@ -177,14 +181,15 @@ def create_nodes(context, *args, **kwargs):
 
     edu_description_share = get_package_share_directory("edu_description")
     sim_ign_dog_share = get_package_share_directory("sim_ign_dog")
+    mujoco_config_share = get_package_share_directory("mujoco_config")
 
-    robot_urdf_path = os.path.join(edu_description_share, "urdf", "edu_mujoco.urdf.xacro")
-    scene_xml_path = os.path.join(edu_description_share, "urdf", "scene.xml")
-    mujoco_inputs_path = os.path.join(edu_description_share, "urdf", "mujoco_inputs.xml")
-    ros2_control_params_file = os.path.join(
-        sim_ign_dog_share, "config", "d1_mujoco_controllers.yaml"
-    )
+    robot_urdf_path = os.path.join(mujoco_config_share, "config", "edu_mujoco.urdf.xacro")
+    stand_robot_urdf_path = os.path.join(edu_description_share, "urdf", "edu_mujoco.urdf")
+    scene_xml_path = os.path.join(mujoco_config_share, "config", "scene.xml")
+    mujoco_inputs_path = os.path.join(mujoco_config_share, "config", "mujoco_inputs.xml")
+    ros2_control_params_file = os.path.join(sim_ign_dog_share, "config", "d1_mujoco_controllers.yaml")
 
+    # 含 mujoco 配置段的 描述文件, 用于 mujoco_ros2_control_node
     robot_description_xml = xacro.process_file(
         robot_urdf_path,
         mappings={
@@ -197,7 +202,11 @@ def create_nodes(context, *args, **kwargs):
         },
     ).toprettyxml(indent="  ")
     robot_description = {"robot_description": robot_description_xml}
-    mjcf_source_xml = strip_mujoco_tags(robot_description_xml)
+    # mjcf_source_xml = strip_mujoco_tags(robot_description_xml)
+
+    # 标准 urdf 描述文件（不含 mujoco 配置段），用于 robot_state_publisher 和 ros2_control_node
+    stand_robot_description_xml = xacro.process_file(stand_robot_urdf_path).toprettyxml(indent="  ")
+    
 
     xacro2mjcf = ExecuteProcess(
         cmd=[
@@ -206,7 +215,7 @@ def create_nodes(context, *args, **kwargs):
             "mujoco_ros2_control",
             "robot_description_to_mjcf.sh",
             "--robot_description",
-            mjcf_source_xml,
+            stand_robot_description_xml,
             "--mujoco_inputs",
             mujoco_inputs_path,
             "--output",
@@ -262,6 +271,7 @@ def create_nodes(context, *args, **kwargs):
     controller_manager = LaunchConfiguration("controller_manager")
     controller_manager_timeout = LaunchConfiguration("controller_manager_timeout")
 
+    # 启动 imu_broadcaster、joint_state_broadcaster、legs_controller
     imu_broadcaster = Node(
         package="controller_manager",
         executable="spawner",
@@ -277,7 +287,6 @@ def create_nodes(context, *args, **kwargs):
         ],
         output="screen",
     )
-
     jsb_spawner = Node(
         package="controller_manager",
         executable="spawner",
@@ -291,7 +300,6 @@ def create_nodes(context, *args, **kwargs):
         ],
         output="screen",
     )
-
     legs_spawner = Node(
         package="controller_manager",
         executable="spawner",
@@ -307,11 +315,11 @@ def create_nodes(context, *args, **kwargs):
     )
 
     rviz_node = Node(
-        condition=IfCondition(LaunchConfiguration("rviz")),
         package="rviz2",
         executable="rviz2",
         arguments=["-d", os.path.join(sim_ign_dog_share, "rviz", "d1_nav2.rviz")],
         output="screen",
+        condition=IfCondition(LaunchConfiguration("rviz")),
     )
 
     config_pkg_share = get_package_share_directory("edu_config")
@@ -403,10 +411,12 @@ def create_nodes(context, *args, **kwargs):
     return ld.entities
 
 
+# 用途：声明可从命令行覆盖的 launch 参数，并把 create_nodes 挂到 OpaqueFunction 中延迟求值。
+# 说明：延迟求值可以在 launch context 可用后读取 LaunchConfiguration，并据此生成 robot_description 与节点参数。
 def generate_launch_description():
     return LaunchDescription(
         [
-            DeclareLaunchArgument("rviz", default_value="true", description="Start rviz2"),
+            DeclareLaunchArgument("rviz", default_value="false", description="Start rviz2"),
             DeclareLaunchArgument("headless", default_value="false", description="Run MuJoCo without GUI"),
             DeclareLaunchArgument("sim_speed_factor", default_value="-1.0"),
             DeclareLaunchArgument("camera_publish_rate", default_value="20.0"),
@@ -424,3 +434,16 @@ def generate_launch_description():
             OpaqueFunction(function=create_nodes),
         ]
     )
+
+
+
+
+# 弃用函数
+
+# 用途：从完整 robot_description XML 中移除 <mujoco> 配置段。
+# 说明：robot_description_to_mjcf.sh 接收的是标准机器人描述，MuJoCo 专用配置通过单独的 mujoco_inputs.xml 提供。
+# def strip_mujoco_tags(xml_text):
+#     dom = minidom.parseString(xml_text)
+#     for mujoco_node in list(dom.getElementsByTagName("mujoco")):
+#         mujoco_node.parentNode.removeChild(mujoco_node)
+#     return dom.toxml()

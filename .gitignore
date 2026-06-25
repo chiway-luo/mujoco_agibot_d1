@@ -4,3 +4,5 @@
 .vscode/
 /temp/
 /ign_models/
+/.codex/
+/.agents/

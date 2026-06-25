@@ -1,12 +1,12 @@
 使用champ开源算法,实现智元机器狗d1的mujoco仿真和导航
-> 测试阶段,请勿使用
+> 测试阶段,目前只实现了加载并使用cmd_vel控制机器人运动,文档不正确,请勿参考除README.md外的其他文档
 ===
 
 ## 使用方式
-mujoco文档见 [mujoco_use.md](mujoco_use.md)
+<!-- mujoco文档见 [mujoco_use.md](mujoco_use.md) -->
 - 克隆本仓库
 ```bash
-
+git clone https://github.com/chiway-luo/mujoco_agibot_d1.git
 ```
 - 安装依赖
 ```
@@ -16,11 +16,7 @@ ros2 run mujoco_ros2_control robot_description_to_mjcf.sh --install-only  # 安�
 ```
 - mujoco仿真环境启动
 ```
-ros2 launch sim_ign_dog d1_mujoco_sim_dog.launch.py
-```
-也可以使用兼容入口:
-```
-ros2 launch sim_ign_dog mujoco.launch.py
+ros2 launch sim_mujoco_dog d1_mujoco_sim_dog.launch.py
 ```
 
 

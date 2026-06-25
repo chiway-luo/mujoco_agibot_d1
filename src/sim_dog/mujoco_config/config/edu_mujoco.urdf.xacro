@@ -1,0 +1,153 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="edu_urdf">
+
+  <!-- 参数：是否使用 MuJoCo 硬件接口 -->
+  <xacro:arg name="mujoco"              default="true"/>
+  <xacro:arg name="use_fake_hardware"   default="false"/>
+  <xacro:arg name="fake_sensor_commands" default="false"/>
+  <xacro:arg name="system_name"         default="D1MujocoSystem"/>
+  <xacro:arg name="mujoco_model"        default="/tmp/mujoco/scene.xml"/>
+  <xacro:arg name="headless"            default="false"/>
+  <xacro:arg name="sim_speed_factor"    default="-1.0"/>
+  <xacro:arg name="camera_publish_rate" default="20.0"/>
+  <xacro:arg name="lidar_publish_rate"  default="10.0"/>
+  <xacro:arg name="initial_keyframe"     default="spawn"/>
+
+  <!-- 1. 机器人本体 URDF（ -->
+  <xacro:include filename="$(find edu_description)/urdf/edu_mujoco.urdf"/>
+
+  <!-- 2. ros2_control 接口宏 -->
+  <xacro:include filename="$(find mujoco_config)/config/ros2_control.urdf.xacro"/>
+  <xacro:d1_ros2_control
+    system_name="$(arg system_name)"
+    mujoco="$(arg mujoco)"
+    mujoco_model="$(arg mujoco_model)"
+    headless="$(arg headless)"
+    sim_speed_factor="$(arg sim_speed_factor)"
+    camera_publish_rate="$(arg camera_publish_rate)"
+    lidar_publish_rate="$(arg lidar_publish_rate)"
+    initial_keyframe="$(arg initial_keyframe)"
+    use_fake_hardware="$(arg use_fake_hardware)"
+    fake_sensor_commands="$(arg fake_sensor_commands)"/>
+
+
+  <!-- MuJoCo 配置（用于 xacro2mjcf 转换） -->
+  <mujoco>
+    <compiler
+      meshdir="/tmp/mujoco/meshes"
+      discardvisual="false"
+      autolimits="true"
+      balanceinertia="true"/>
+
+    <option
+      integrator="implicitfast"
+      gravity="0 0 -9.81"
+      impratio="10"
+      cone="elliptic"
+      solver="Newton">
+      <flag multiccd="enable"/>
+    </option>
+
+    <reference name="base_link">
+      <site name="imu_in_base" size="0.01" pos="0 0 0"/>
+      <site name="lidar_head" size="0.01" pos="0.21 0 0.2" quat="1 0 0 0"/>
+      <geom name="base_link_collision_0" contype="1" conaffinity="1"/>
+    </reference>
+
+    <reference name="FL_ABAD_LINK">
+      <joint name="FL_ABAD_JOINT" ref="0.0" damping="1.0" armature="0.01"/>
+      <geom name="FL_ABAD_LINK_collision_0" contype="0" conaffinity="0"/>
+    </reference>
+    <reference name="FL_HIP_LINK">
+      <joint name="FL_HIP_JOINT" ref="0.0" damping="1.5" armature="0.02"/>
+      <geom name="FL_HIP_LINK_collision_0" contype="0" conaffinity="0"/>
+    </reference>
+    <reference name="FL_KNEE_LINK">
+      <joint name="FL_KNEE_JOINT" ref="0.0" damping="1.5" armature="0.02"/>
+      <geom name="FL_KNEE_LINK_collision_0" contype="0" conaffinity="0"/>
+    </reference>
+    <reference name="FL_FOOT_LINK">
+      <geom name="FL_FOOT_LINK_collision_0" priority="2" condim="6" friction="1.2 0.04 0.002" solref="0.006 4" solimp="0.95 0.99 0.001"/>
+    </reference>
+
+    <reference name="FR_ABAD_LINK">
+      <joint name="FR_ABAD_JOINT" ref="0.0" damping="1.0" armature="0.01"/>
+      <geom name="FR_ABAD_LINK_collision_0" contype="0" conaffinity="0"/>
+    </reference>
+    <reference name="FR_HIP_LINK">
+      <joint name="FR_HIP_JOINT" ref="0.0" damping="1.5" armature="0.02"/>
+      <geom name="FR_HIP_LINK_collision_0" contype="0" conaffinity="0"/>
+    </reference>
+    <reference name="FR_KNEE_LINK">
+      <joint name="FR_KNEE_JOINT" ref="0.0" damping="1.5" armature="0.02"/>
+      <geom name="FR_KNEE_LINK_collision_0" contype="0" conaffinity="0"/>
+    </reference>
+    <reference name="FR_FOOT_LINK">
+      <geom name="FR_FOOT_LINK_collision_0" priority="2" condim="6" friction="1.2 0.04 0.002" solref="0.006 4" solimp="0.95 0.99 0.001"/>
+    </reference>
+
+    <reference name="RL_ABAD_LINK">
+      <joint name="RL_ABAD_JOINT" ref="0.0" damping="1.0" armature="0.01"/>
+      <geom name="RL_ABAD_LINK_collision_0" contype="0" conaffinity="0"/>
+    </reference>
+    <reference name="RL_HIP_LINK">
+      <joint name="RL_HIP_JOINT" ref="0.0" damping="1.5" armature="0.02"/>
+      <geom name="RL_HIP_LINK_collision_0" contype="0" conaffinity="0"/>
+    </reference>
+    <reference name="RL_KNEE_LINK">
+      <joint name="RL_KNEE_JOINT" ref="0.0" damping="1.5" armature="0.02"/>
+      <geom name="RL_KNEE_LINK_collision_0" contype="0" conaffinity="0"/>
+    </reference>
+    <reference name="RL_FOOT_LINK">
+      <geom name="RL_FOOT_LINK_collision_0" priority="2" condim="6" friction="1.2 0.04 0.002" solref="0.006 4" solimp="0.95 0.99 0.001"/>
+    </reference>
+
+    <reference name="RR_ABAD_LINK">
+      <joint name="RR_ABAD_JOINT" ref="0.0" damping="1.0" armature="0.01"/>
+      <geom name="RR_ABAD_LINK_collision_0" contype="0" conaffinity="0"/>
+    </reference>
+    <reference name="RR_HIP_LINK">
+      <joint name="RR_HIP_JOINT" ref="0.0" damping="1.5" armature="0.02"/>
+      <geom name="RR_HIP_LINK_collision_0" contype="0" conaffinity="0"/>
+    </reference>
+    <reference name="RR_KNEE_LINK">
+      <joint name="RR_KNEE_JOINT" ref="0.0" damping="1.5" armature="0.02"/>
+      <geom name="RR_KNEE_LINK_collision_0" contype="0" conaffinity="0"/>
+    </reference>
+    <reference name="RR_FOOT_LINK">
+      <geom name="RR_FOOT_LINK_collision_0" priority="2" condim="6" friction="1.2 0.04 0.002" solref="0.006 4" solimp="0.95 0.99 0.001"/>
+    </reference>
+
+    <reference name="front_camera">
+      <camera name="front_camera" mode="fixed" fovy="60" quat="0.5 0.5 -0.5 -0.5"/>
+    </reference>
+
+    <actuator>
+      <position name="FL_ABAD_JOINT_position" joint="FL_ABAD_JOINT" kp="300" kv="5" ctrlrange="-0.4887 0.4887" forcerange="-48 48"/>
+      <position name="FL_HIP_JOINT_position" joint="FL_HIP_JOINT" kp="300" kv="5" ctrlrange="-1.1519 2.967" forcerange="-48 48"/>
+      <position name="FL_KNEE_JOINT_position" joint="FL_KNEE_JOINT" kp="300" kv="5" ctrlrange="-2.723 -0.602" forcerange="-48 48"/>
+
+      <position name="FR_ABAD_JOINT_position" joint="FR_ABAD_JOINT" kp="300" kv="5" ctrlrange="-0.4887 0.4887" forcerange="-48 48"/>
+      <position name="FR_HIP_JOINT_position" joint="FR_HIP_JOINT" kp="300" kv="5" ctrlrange="-1.1519 2.967" forcerange="-48 48"/>
+      <position name="FR_KNEE_JOINT_position" joint="FR_KNEE_JOINT" kp="300" kv="5" ctrlrange="-2.723 -0.602" forcerange="-48 48"/>
+
+      <position name="RL_ABAD_JOINT_position" joint="RL_ABAD_JOINT" kp="300" kv="5" ctrlrange="-0.4887 0.4887" forcerange="-48 48"/>
+      <position name="RL_HIP_JOINT_position" joint="RL_HIP_JOINT" kp="300" kv="5" ctrlrange="-1.1519 2.967" forcerange="-48 48"/>
+      <position name="RL_KNEE_JOINT_position" joint="RL_KNEE_JOINT" kp="300" kv="5" ctrlrange="-2.723 -0.602" forcerange="-48 48"/>
+
+      <position name="RR_ABAD_JOINT_position" joint="RR_ABAD_JOINT" kp="300" kv="5" ctrlrange="-0.4887 0.4887" forcerange="-48 48"/>
+      <position name="RR_HIP_JOINT_position" joint="RR_HIP_JOINT" kp="300" kv="5" ctrlrange="-1.1519 2.967" forcerange="-48 48"/>
+      <position name="RR_KNEE_JOINT_position" joint="RR_KNEE_JOINT" kp="300" kv="5" ctrlrange="-2.723 -0.602" forcerange="-48 48"/>
+    </actuator>
+
+    <sensor>
+      <gyro name="imu_in_base-angular-velocity" site="imu_in_base" noise="5e-4" cutoff="34.9"/>
+      <accelerometer name="imu_in_base-linear-acceleration" site="imu_in_base" noise="1e-2" cutoff="157"/>
+      <framequat name="imu_in_base-orientation" objtype="site" objname="imu_in_base"/>
+
+      <framepos name="base_pose" objtype="body" objname="base_link" reftype="body" refname="world"/>
+      <framequat name="base_pose-orientation" objtype="body" objname="base_link" reftype="body" refname="world"/>
+    </sensor>
+  </mujoco>
+
+</robot>
