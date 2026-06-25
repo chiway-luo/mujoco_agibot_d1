@@ -180,14 +180,14 @@ def create_nodes(context, *args, **kwargs):
     prepare_mujoco_output(model_dir, model_scene_xml)
 
     edu_description_share = get_package_share_directory("edu_description")
-    sim_ign_dog_share = get_package_share_directory("sim_ign_dog")
+    sim_mujoco_dog_share = get_package_share_directory("sim_mujoco_dog")
     mujoco_config_share = get_package_share_directory("mujoco_config")
 
     robot_urdf_path = os.path.join(mujoco_config_share, "config", "edu_mujoco.urdf.xacro")
     stand_robot_urdf_path = os.path.join(edu_description_share, "urdf", "edu_mujoco.urdf")
     scene_xml_path = os.path.join(mujoco_config_share, "config", "scene.xml")
     mujoco_inputs_path = os.path.join(mujoco_config_share, "config", "mujoco_inputs.xml")
-    ros2_control_params_file = os.path.join(sim_ign_dog_share, "config", "d1_mujoco_controllers.yaml")
+    ros2_control_params_file = os.path.join(sim_mujoco_dog_share, "config", "d1_mujoco_controllers.yaml")
 
     # 含 mujoco 配置段的 描述文件, 用于 mujoco_ros2_control_node
     robot_description_xml = xacro.process_file(
@@ -317,7 +317,7 @@ def create_nodes(context, *args, **kwargs):
     rviz_node = Node(
         package="rviz2",
         executable="rviz2",
-        arguments=["-d", os.path.join(sim_ign_dog_share, "rviz", "d1_nav2.rviz")],
+        arguments=["-d", os.path.join(sim_mujoco_dog_share, "rviz", "d1_nav2.rviz")],
         output="screen",
         condition=IfCondition(LaunchConfiguration("rviz")),
     )
